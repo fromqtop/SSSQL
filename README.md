@@ -1,0 +1,2 @@
+# SSSQL
+Googleスプレッドシートの表をGoogle Apps ScriptからSQL的に扱うことができるライブラリ
