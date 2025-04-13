@@ -233,8 +233,8 @@ function orderRecords_(orderBy, columns, records) {
 
   return records.sort((a, b) => {
     for (const item of sortCriteria) {
-      if (a[item.index] < b[item.index]) return item.order === "asc" ? -1 : 1;
-      if (a[item.index] > b[item.index]) return item.order === "asc" ?  1 : -1;
+      if (a[item.index] < b[item.index]) return item.order === "ASC" ? -1 : 1;
+      if (a[item.index] > b[item.index]) return item.order === "DESC" ?  1 : -1;
     }
     return 0;
   });
@@ -272,16 +272,16 @@ function groupRecords_(groupBy, columns, records) {
 
       group.calculated[as] = (() => {
         switch (aggType) {
-          case "count":
+          case "COUNT":
             return group.records.filter(record => 
               record[index] !== ""
             ).length;
-          case "sum":
+          case "SUM":
             return group.records.reduce((acc, record) => {
               const value = record[index];
               return isNumber(value) ? acc + value : acc;
             }, 0);
-          case "avg":
+          case "AVG":
             const { count, sum } = group.records.reduce((acc, record) => {
               const value = record[index];
               if (isNumber(value)) {
@@ -291,9 +291,9 @@ function groupRecords_(groupBy, columns, records) {
               return acc;
             }, { count: 0, sum: 0 });        
             return count !== 0 ? sum / count : null;  
-          case "min":
+          case "MIN":
             return Math.min(...getNumericValues(group.records, index));
-          case "max":
+          case "MAX":
             return Math.max(...getNumericValues(group.records, index));
         }
       })();
