@@ -1,19 +1,19 @@
 # SSSQL - Google Spreadsheet SQL-like Query Library
 
-SSSQL は Google スプレッドシート上のデータを、SQL ライクなクエリで柔軟に操作するための Google Apps Script ライブラリです。
+SSSQL is a Google Apps Script library that allows you to flexibly manipulate data in Google Sheets using SQL-like queries.
 
 ---
 
-## 機能
-### 機能一覧
+## Methods
 
-| メソッド | 概要 |
+
+| Method | Return type | Brief description |
 |---------|------|
-| `select(sheet, query, options?)` | データの抽出・絞込み・整形 |
-| `insert(sheet, record)` | 単一レコードの追加 |
-| `bulkInsert(sheet, records)` | 複数レコードの一括追加 |
-| `update(sheet, query)` | 条件に一致するレコードの更新 |
-| `remove(sheet, query)` | 条件に一致するレコードの削除 |
+| select(sheet, query, options?) | Records | Get data from the sheet that matches specified conditions. |
+| insert(sheet, record) | void | Insert a single row of data. |
+| bulkInsert(sheet, records) | void | Insert multiple rows of data. |
+| update(sheet, query) | void | Update data that meets specified conditions. |
+| remove(sheet, query) | void | Delete data that meets specified conditions. |
 
 ---
 
