@@ -15,7 +15,7 @@ For instructions on how to use the library, please refer to the following link:<
 
 | Method | Return type | Brief description |
 |--------|-------------|-------------------|
-| [select(sheet, query, options?)](#add_a_library_to_your_script_project) | Records | Get data from the sheet that matches specified conditions. |
+| select(sheet, query, options?) | Records | Get data from the sheet that matches specified conditions. |
 | insert(sheet, record) | void | Insert a single row of data. |
 | bulkInsert(sheet, records) | void | Insert multiple rows of data. |
 | update(sheet, query) | void | Update data that meets specified conditions. |
