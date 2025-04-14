@@ -17,7 +17,9 @@ SSSQL is a Google Apps Script library that allows you to flexibly manipulate dat
 ---
 
 ## Detailed documentation
+
 ### select(sheet, query, options?)
+
 ```javascript
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
@@ -49,6 +51,8 @@ const result = SSSQL.select(sheet, query);
 
 #### Details about the "query"
 
+Conditions for row selection, sorting, grouping, and other processing options.
+
 - **columns**
 
 Specify the columns to be retrieved as an array.
@@ -66,7 +70,7 @@ Specify the row extraction conditions. When multiple conditions are provided, ro
 The available comparison operators are described later. If both where and whereOr are omitted, all rows will be extracted.
 
 ```javascript
-const result = .select(sheet, {
+const result = SSSQL.select(sheet, {
   where: {
     age: [">", "20"],
     country: ["=", "USA%"]
@@ -116,13 +120,14 @@ const result = SSSQL.select(sheet, {
 });
 ```
 
-#### optionsオブジェクト
-selectには下記のオプションを指定可能です。
+#### Details about the "options"
 
-| オプション | 概要 | 例 |
-| --------- | ---- | -- |
-| `withRowNum` | シートの行番号(`ROWNUM`)も取得します。 | `options: { withRowNum: true }` |
-| `asArray` | データを二次元配列として取得します。 | `options: { asArray: true }` |
+Options such as return format and row number retrieval.
+
+| Name | Description |
+|------|-------------|
+| withRowNum | Includes the sheet's row number (`ROWNUM`) in the result. |
+| asArray | Retrieves the data as a two-dimensional array. |
 
 ---
 
