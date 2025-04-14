@@ -4,7 +4,8 @@ SSSQL は Google スプレッドシート上のデータを、SQL ライクな�
 
 ---
 
-## 機能一覧
+## 機能
+### 機能一覧
 
 | メソッド | 概要 |
 |---------|------|
@@ -16,9 +17,8 @@ SSSQL は Google スプレッドシート上のデータを、SQL ライクな�
 
 ---
 
-## 使用例
-
 ### select
+#### 使用例
 ```javascript
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
@@ -49,17 +49,76 @@ selectの条件等を指定する query オブジェクトには、下記のプ�
 | `where` | 行の抽出条件を指定します。<br>`{ 列名: ["比較演算子", 値], 列名: ["比較演算子", 値] ...}`の形式で条件を指定します。複数条件を指定した場合、すべての条件を満たす行が抽出されます。<br>使用できる比較演算子は後述。<br>where`および`whereOr`の両方を省略時は、全行が抽出されます。 | `where: { age: [">", 20], country: ["=", "USA" }` |
 | `whereOr` | 行の抽出条件を指定します。<br>`{ 列名: ["比較演算子", 値], 列名: ["比較演算子", 値] ...}`の形式で条件を指定します。複数条件を指定した場合、いずれかの条件を満たす行が抽出されます。<br>使用できる比較演算子は後述。<br>where`および`whereOr`の両方を省略時は、全行が抽出されます。 | `whereOr: { age: [">", 20], country: ["=", "USA" }` |
 | `groupBy` | データをグループ化・集計する際に指定します。<br>`[["グループ化項目1", "グループ化項目2" ...], { 出力列名1: ["集計列名", "集計関数"], 出力列名2: ["集計列名", "集計関数"] ...]の形式で指定します。` | `groupBy: [["job", "country"], { avg_salary: ["salary", "AVG"], max_salary: ["salary", "MAX"] }]` |
-| `orderBy` | データをソートする際に指定します。<br>`{ 項目名1: "ソート順", 項目名2: "ソート順" ... }`の形式で指定します。 | `orderBy: { age: "ASC", name: "DESC" } |
+| `orderBy` | データをソートする際に指定します。<br>`{ 項目名1: "ソート順", 項目名2: "ソート順" ... }`の形式で指定します。 `ソート順`は `ASC`(昇順) または `DESC`(降順) を指定します。| `orderBy: { age: "ASC", name: "DESC" }` |
 
 #### optionsオブジェクト
 selectには下記のオプションを指定可能です。
 
 | オプション | 概要 | 例 |
 | --------- | ---- | -- |
-| withRowNum | シートの行番号も取得します。 | options: { withRowNum: true } |
-| asArray | データを二次元配列として取得します。 | options: { asArray: true } |
+| `withRowNum` | シートの行番号(`ROWNUM`)も取得します。 | `options: { withRowNum: true }` |
+| `asArray` | データを二次元配列として取得します。 | `options: { asArray: true }` |
 
-##### 比較演算子
+### insert
+#### 使用例
+```javascript
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const sheet = ss.getSheetByName("customers");
+
+const record ={
+  name: "Charlie",
+  age: "28",
+  country: "Canada"
+}
+
+SSSQL.insert(sheet, record);
+```
+
+### bulkInsert
+#### 使用例
+```javascript
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const sheet = ss.getSheetByName("customers");
+
+const records ={[
+  { name: "Dave", age: "35", country: "UK" },
+  { name: "Eve", age: "27", country: "Germany" }
+]};
+
+SSSQL.bulkInsert(sheet, records);
+```
+
+### update
+#### 使用例
+```javascript
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const sheet = ss.getSheetByName("customers");
+
+const query = {
+  set: { phone: "090-1234-5678" },
+  where: { id: "alice@example.com" }
+};
+
+SSSQL.update(sheet, query);
+```
+
+### remove
+#### 使用例
+```javascript
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const sheet = ss.getSheetByName("customers");
+
+const query = {
+  where: { id: "alice@example.com" }
+}
+
+SSSQL.remove(sheet, query);
+```
+
+## 補足
+### 比較演算子
+`where`, `whereOr` プロパティにおいて、利用できる比較演算子は下記のとおりです。
+
 | 比較演算子 | 使用例 | 備考 |
 | --------- | ------ | ---- |
 | `=` | `age: ["=", 20]` |  |
@@ -74,38 +133,3 @@ selectには下記のオプションを指定可能です。
 | `NOT IN` | `country: ["NOT IN", ["JPN", "USA", "UK"]]` |  |
 | `LIKE` | `job: ["LIKE", "Sales%"]` | ワイルドカードとして下記を使用可能<br> `%` ・・・ 0文字以上の任意の文字列<br>`_` ・・・　任意の1文字 |
 | `NOT LIKE` | `job: ["NOT LIKE", "Sales%"]` | ワイルドカードとして下記を使用可能<br> `%` ・・・ 0文字以上の任意の文字列<br>`_` ・・・　任意の1文字 |
-
-
-
-### insert
-```javascript
-SSSQL.insert(sheet, {
-  name: "Charlie",
-  age: "28",
-  country: "Canada"
-});
-```
-
-### bulkInsert
-```javascript
-SSSQL.bulkInsert(sheet, [
-  { name: "Dave", age: "35", country: "UK" },
-  { name: "Eve", age: "27", country: "Germany" }
-]);
-```
-
-### update
-```javascript
-SSSQL.update(sheet, {
-  set: { phone: "090-1234-5678" },
-  where: { id: "alice@example.com" }
-});
-```
-
-### remove
-```javascript
-SSSQL.remove(sheet, {
-  where: { id: "alice@example.com" }
-});
-```
-
