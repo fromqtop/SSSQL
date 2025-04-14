@@ -20,6 +20,8 @@ SSSQL is a Google Apps Script library that allows you to flexibly manipulate dat
 
 ### select(sheet, query, options?)
 
+Get data from the sheet that matches specified conditions.
+
 ```javascript
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
@@ -131,13 +133,15 @@ Options such as return format and row number retrieval.
 
 ---
 
-### insert
-#### 使用例
+### insert(sheet, record)
+
+Insert a single row of data.
+
 ```javascript
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
 
-const record ={
+const record = {
   name: "Charlie",
   age: "28",
   country: "Canada"
@@ -146,14 +150,19 @@ const record ={
 SSSQL.insert(sheet, record);
 ```
 
-#### recordオブジェクト
-挿入するデータをオブジェクトで指定します。（使用例参照）
-指定しなかったカラムには `null` が設定されます。
+#### Parameters
+
+| Name | Description |
+|------|-------------|
+| sheet | The target sheet for insert. |
+| record | Specify the data to insert as an object (see usage example). Columns that are not specified will be set to null. |
 
 ---
 
-### bulkInsert
-#### 使用例
+### bulkInsert(sheet, records)
+
+Insert multiple rows of data.
+
 ```javascript
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
@@ -166,14 +175,19 @@ const records ={[
 SSSQL.bulkInsert(sheet, records);
 ```
 
-#### recordsオブジェクト
-挿入するデータをオブジェクトの配列で指定します。（使用例参照）
-指定しなかったカラムには `null` が設定されます。
+#### Parameters
+
+| Name | Description |
+|------|-------------|
+| sheet | The target sheet for insert. |
+| records | Specify the data to insert as an array of objects (see usage example). Columns that are not specified will be set to null. |
 
 ---
 
-### update
-#### 使用例
+### update(sheet, query)
+
+Update data that meets specified conditions.
+
 ```javascript
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
@@ -186,17 +200,19 @@ const query = {
 SSSQL.update(sheet, query);
 ```
 
-#### queryオブジェクト
-| プロパティ | 概要 | 例 |
-|---------|------|------|
-| `set` | 更新する列と値を指定します。 | `set: { phone: "090-1234-5678" }` |
-| `where`または`whereOr` | 更新対象行の条件を指定します。詳細は`select`メソッドの`where`・`whereOr`プロパティの解説を参照してください。| `where: { age: [">", 20], country: ["=", "USA" }` |
+#### Parameters
 
+| Name | Description |
+|------|-------------|
+| sheet | The target sheet for insert. |
+| query | Specify the conditions for the rows to be updated. Use the set property to specify the columns and values to be updated.<br> As for specifying the rows to be updated, see the explanation of the `where` and `whereOr` properties in the `select` method. |
 
 ---
 
-### remove
-#### 使用例
+### remove(sheet, query)
+
+Delete data that meets specified conditions.
+
 ```javascript
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
@@ -207,6 +223,13 @@ const query = {
 
 SSSQL.remove(sheet, query);
 ```
+
+#### Parameters
+
+| Name | Description |
+|------|-------------|
+| sheet | The target sheet for insert. |
+| query | Specify the conditions for the rows to be deleted. As for specifying the rows to be updated, see the explanation of the `where` and `whereOr` properties in the `select` method. |
 
 ## Notes  
 
