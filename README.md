@@ -31,33 +31,42 @@ const query = {
 };
 
 const result = SSSQL.select(sheet, query);
-console.log(result);
 
+// result
 // [
 //   { name: "Alice", age: 30, country: "USA" },
 //   { name: "Bob", age: 25, country: "USA" }
 // ]
 ```
+
 #### Parameters
+
 | Name | Description |
 |------|-------------|
 | sheet | The target sheet for selection. |
 | query | Conditions for row selection, sorting, grouping, and other processing options. |
 | options? | Options such as return format and row number retrieval. |
 
-##### query
-**columns**
+#### Details about the "query"
+
+- **columns**
+
 Specify the columns to be retrieved as an array.
+If this parameter is omitted, all columns will be retrieved.
+
 ```javascript
-SSSQL.select(sheet, {
+const result = SSSQL.select(sheet, {
   columns: ["name", "age", "country"]
 })
 ```
 
-**where**
-Specify the row extraction conditions. When multiple conditions are provided, rows that meet all of the conditions will be extracted. The available comparison operators are described later. If both where and whereOr are omitted, all rows will be extracted.
+- **where**
+
+Specify the row extraction conditions. When multiple conditions are provided, rows that meet all of the conditions will be extracted.
+The available comparison operators are described later. If both where and whereOr are omitted, all rows will be extracted.
+
 ```javascript
-SSSQL.select(sheet, {
+const result = .select(sheet, {
   where: {
     age: [">", "20"],
     country: ["=", "USA%"]
@@ -65,21 +74,47 @@ SSSQL.select(sheet, {
 })
 ```
 
-**whereOr**
-**groupBy**
-**orderBy**
+- **whereOr**
 
+Specify the row extraction conditions. When multiple conditions are provided, rows that meet any of the conditions will be extracted.
+The available comparison operators are described later. If both where and whereOr are omitted, all rows will be extracted.
 
-#### queryオブジェクト
-selectの条件等を指定する query オブジェクトには、下記のプロパティを指定可能です。
+```javascript
+const result = SSSQL.select(sheet, {
+  where: {
+    age: [">", "20"],
+    country: ["=", "USA%"]
+  }
+});
+```
 
-| プロパティ | 概要 | 例 |
-|---------|------|------|
-| `columns` | 取得するカラムを指定します。<br>省略時は全項目を取得します。 | `columns: ["name", "age", "country"]` |
-| `where` | 行の抽出条件を指定します。<br>`{ 列名: ["比較演算子", 値], 列名: ["比較演算子", 値] ...}`の形式で条件を指定します。複数条件を指定した場合、すべての条件を満たす行が抽出されます。<br>使用できる比較演算子は後述。<br>where`および`whereOr`の両方を省略時は、全行が抽出されます。 | `where: { age: [">", 20], country: ["=", "USA" }` |
-| `whereOr` | 行の抽出条件を指定します。<br>`{ 列名: ["比較演算子", 値], 列名: ["比較演算子", 値] ...}`の形式で条件を指定します。複数条件を指定した場合、いずれかの条件を満たす行が抽出されます。<br>使用できる比較演算子は後述。<br>where`および`whereOr`の両方を省略時は、全行が抽出されます。 | `whereOr: { age: [">", 20], country: ["=", "USA" }` |
-| `groupBy` | データをグループ化・集計する際に指定します。<br>`[["グループ化項目1", "グループ化項目2" ...], { 出力列名1: ["集計列名", "集計関数"], 出力列名2: ["集計列名", "集計関数"] ...]の形式で指定します。` | `groupBy: [["job", "country"], { avg_salary: ["salary", "AVG"], max_salary: ["salary", "MAX"] }]` |
-| `orderBy` | データをソートする際に指定します。<br>`{ 項目名1: "ソート順", 項目名2: "ソート順" ... }`の形式で指定します。 `ソート順`は `ASC`(昇順) または `DESC`(降順) を指定します。| `orderBy: { age: "ASC", name: "DESC" }` |
+- **groupBy**
+
+Specify when grouping and aggregating data.
+
+```javascript
+const result = SSSQL.select(sheet,
+  groupBy: [
+    ["job", "country"],
+    { avg_salary: ["salary", "AVG"], max_salary: ["salary", "MAX"] }
+  ]
+);
+// result
+// [
+//   { job: "Sales", country: "USA", avg_salary: 3500, max_salary: 7000 },
+//   { job: "HR", country: "USA", avg_salary: 3800, max_salary: 8000 }
+// ]
+```
+
+- **orderBy**
+
+Specify when sorting data. The sort order can be specified as "ASC" or "DESC".
+
+```javascript
+const result = SSSQL.select(sheet, {
+  orderBy: { age: "ASC", name: "DESC" }
+});
+```
 
 #### optionsオブジェクト
 selectには下記のオプションを指定可能です。
