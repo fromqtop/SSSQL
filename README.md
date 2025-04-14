@@ -208,21 +208,23 @@ const query = {
 SSSQL.remove(sheet, query);
 ```
 
-## 補足
-### 比較演算子
-`where`, `whereOr` プロパティにおいて、利用できる比較演算子は下記のとおりです。
+## Notes  
 
-| 比較演算子 | 使用例 | 備考 |
-| --------- | ------ | ---- |
-| `=` | `age: ["=", 20]` |  |
-| `<>` | `age: ["<>", 20]` |  |
-| `>` | `age: [">", 20]` |  |
-| `>=` | `age: [">=", 20]` |  |
-| `<` | `age: ["<", 20]` |  |
-| `<=` | `age: ["<=", 20]` |  |
-| `BETWEEN` | `age: ["BETWEEN", [10, 30]]` |  |
-| `NOT BETWEEN` | `age: ["NOT BETWEEN", [10, 30]]` |  |
-| `IN` | `country: ["IN", ["JPN", "USA", "UK"]]` |  |
-| `NOT IN` | `country: ["NOT IN", ["JPN", "USA", "UK"]]` |  |
-| `LIKE` | `job: ["LIKE", "Sales%"]` | ワイルドカードとして下記を使用可能<br> `%` ・・・ 0文字以上の任意の文字列<br>`_` ・・・　任意の1文字 |
-| `NOT LIKE` | `job: ["NOT LIKE", "Sales%"]` | ワイルドカードとして下記を使用可能<br> `%` ・・・ 0文字以上の任意の文字列<br>`_` ・・・　任意の1文字 |
+### Comparison Operators  
+
+The following comparison operators can be used with the `where` and `whereOr` properties:
+
+| Operator       | Example                                     | Notes                                                                 |
+|----------------|---------------------------------------------|-----------------------------------------------------------------------|
+| `=`            | `age: ["=", 20]`                            |                                                                       |
+| `<>`           | `age: ["<>", 20]`                           |                                                                       |
+| `>`            | `age: [">", 20]`                            |                                                                       |
+| `>=`           | `age: [">=", 20]`                           |                                                                       |
+| `<`            | `age: ["<", 20]`                            |                                                                       |
+| `<=`           | `age: ["<=", 20]`                           |                                                                       |
+| `BETWEEN`      | `age: ["BETWEEN", [10, 30]]`                |                                                                       |
+| `NOT BETWEEN`  | `age: ["NOT BETWEEN", [10, 30]]`            |                                                                       |
+| `IN`           | `country: ["IN", ["JPN", "USA", "UK"]]`     |                                                                       |
+| `NOT IN`       | `country: ["NOT IN", ["JPN", "USA", "UK"]]` |                                                                       |
+| `LIKE`         | `job: ["LIKE", "Sales%"]`                   | Wildcards:<br> `%` – any sequence of characters (including none)<br> `_` – any single character |
+| `NOT LIKE`     | `job: ["NOT LIKE", "Sales%"]`               | Wildcards:<br> `%` – any sequence of characters (including none)<br> `_` – any single character |
