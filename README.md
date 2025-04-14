@@ -2,13 +2,20 @@
 
 SSSQL is a Google Apps Script library that allows you to flexibly manipulate data in Google Sheets using SQL-like queries.
 
+## How To Use
+
+The Script ID is "1QBRx0gJSXOadbTBGAO5V3MavDU_-8lS7wdNPZi3Bqyqro1AsjHnHRplc".
+
+For instructions on how to use the library, please refer to the following link:<br>
+[Add a Library to Your Script Project](https://developers.google.com/apps-script/guides/libraries#add_a_library_to_your_script_project).
+
 ---
 
 ## Methods
 
 | Method | Return type | Brief description |
 |--------|-------------|-------------------|
-| select(sheet, query, options?) | Records | Get data from the sheet that matches specified conditions. |
+| [select(sheet, query, options?)](#add_a_library_to_your_script_project) | Records | Get data from the sheet that matches specified conditions. |
 | insert(sheet, record) | void | Insert a single row of data. |
 | bulkInsert(sheet, records) | void | Insert multiple rows of data. |
 | update(sheet, query) | void | Update data that meets specified conditions. |
