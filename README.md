@@ -4,7 +4,7 @@ SSSQL is a Google Apps Script library that allows you to flexibly manipulate dat
 
 ## How To Use
 
-The Script ID is "1QBRx0gJSXOadbTBGAO5V3MavDU_-8lS7wdNPZi3Bqyqro1AsjHnHRplc".
+The Script ID is `1QBRx0gJSXOadbTBGAO5V3MavDU_-8lS7wdNPZi3Bqyqro1AsjHnHRplc`.
 
 For instructions on how to use the library, please refer to the following link:<br>
 [Add a Library to Your Script Project](https://developers.google.com/apps-script/guides/libraries#add_a_library_to_your_script_project).
