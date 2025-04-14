@@ -76,6 +76,10 @@ const record ={
 SSSQL.insert(sheet, record);
 ```
 
+#### recordオブジェクト
+挿入するデータをオブジェクトで指定します。（使用例参照）
+指定しなかったカラムには `null` が設定されます。
+
 ---
 
 ### bulkInsert
@@ -92,6 +96,10 @@ const records ={[
 SSSQL.bulkInsert(sheet, records);
 ```
 
+#### recordsオブジェクト
+挿入するデータをオブジェクトの配列で指定します。（使用例参照）
+指定しなかったカラムには `null` が設定されます。
+
 ---
 
 ### update
@@ -107,6 +115,13 @@ const query = {
 
 SSSQL.update(sheet, query);
 ```
+
+#### queryオブジェクト
+| プロパティ | 概要 | 例 |
+|---------|------|------|
+| `set` | 更新する列と値を指定します。 | `set: { phone: "090-1234-5678" }` |
+| `where`または`whereOr` | 更新対象行の条件を指定します。詳細は`select`メソッドの`where`・`whereOr`プロパティの解説を参照してください。| `where: { age: [">", 20], country: ["=", "USA" }` |
+
 
 ---
 
