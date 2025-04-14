@@ -110,7 +110,7 @@ const sheet = ss.getSheetByName("customers");
 
 const query = {
   set: { phone: "090-1234-5678" },
-  where: { id: "alice@example.com" }
+  where: { id: ["=", "alice@example.com"] }
 };
 
 SSSQL.update(sheet, query);
