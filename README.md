@@ -59,6 +59,8 @@ selectには下記のオプションを指定可能です。
 | `withRowNum` | シートの行番号(`ROWNUM`)も取得します。 | `options: { withRowNum: true }` |
 | `asArray` | データを二次元配列として取得します。 | `options: { asArray: true }` |
 
+---
+
 ### insert
 #### 使用例
 ```javascript
@@ -74,6 +76,8 @@ const record ={
 SSSQL.insert(sheet, record);
 ```
 
+---
+
 ### bulkInsert
 #### 使用例
 ```javascript
@@ -88,6 +92,8 @@ const records ={[
 SSSQL.bulkInsert(sheet, records);
 ```
 
+---
+
 ### update
 #### 使用例
 ```javascript
@@ -101,6 +107,8 @@ const query = {
 
 SSSQL.update(sheet, query);
 ```
+
+---
 
 ### remove
 #### 使用例
