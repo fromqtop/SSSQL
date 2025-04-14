@@ -258,3 +258,7 @@ The following comparison operators can be used with the `where` and `whereOr` pr
 | `NOT IN`       | `country: ["NOT IN", ["JPN", "USA", "UK"]]` |                                                                       |
 | `LIKE`         | `job: ["LIKE", "Sales%"]`                   | Wildcards:<br> `%` – any sequence of characters (including none)<br> `_` – any single character |
 | `NOT LIKE`     | `job: ["NOT LIKE", "Sales%"]`               | Wildcards:<br> `%` – any sequence of characters (including none)<br> `_` – any single character |
+
+## License
+
+This project is licensed under the MIT License
