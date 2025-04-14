@@ -6,9 +6,8 @@ SSSQL is a Google Apps Script library that allows you to flexibly manipulate dat
 
 ## Methods
 
-
 | Method | Return type | Brief description |
-|---------|------|
+|--------|-------------|-------------------|
 | select(sheet, query, options?) | Records | Get data from the sheet that matches specified conditions. |
 | insert(sheet, record) | void | Insert a single row of data. |
 | bulkInsert(sheet, records) | void | Insert multiple rows of data. |
@@ -17,8 +16,8 @@ SSSQL is a Google Apps Script library that allows you to flexibly manipulate dat
 
 ---
 
-### select
-#### 使用例
+## Detailed documentation
+### select(sheet, query, options?)
 ```javascript
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
@@ -39,6 +38,37 @@ console.log(result);
 //   { name: "Bob", age: 25, country: "USA" }
 // ]
 ```
+#### Parameters
+| Name | Description |
+|------|-------------|
+| sheet | The target sheet for selection. |
+| query | Conditions for row selection, sorting, grouping, and other processing options. |
+| options? | Options such as return format and row number retrieval. |
+
+##### query
+**columns**
+Specify the columns to be retrieved as an array.
+```javascript
+SSSQL.select(sheet, {
+  columns: ["name", "age", "country"]
+})
+```
+
+**where**
+Specify the row extraction conditions. When multiple conditions are provided, rows that meet all of the conditions will be extracted. The available comparison operators are described later. If both where and whereOr are omitted, all rows will be extracted.
+```javascript
+SSSQL.select(sheet, {
+  where: {
+    age: [">", "20"],
+    country: ["=", "USA%"]
+  }
+})
+```
+
+**whereOr**
+**groupBy**
+**orderBy**
+
 
 #### queryオブジェクト
 selectの条件等を指定する query オブジェクトには、下記のプロパティを指定可能です。
