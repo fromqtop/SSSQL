@@ -105,12 +105,12 @@ const result = SSSQL.select(sheet, {
 Specify when grouping and aggregating data.
 
 ```javascript
-const result = SSSQL.select(sheet,
+const result = SSSQL.select(sheet, {
   groupBy: [
     ["job", "country"],
     { avg_salary: ["salary", "AVG"], max_salary: ["salary", "MAX"] }
   ]
-);
+});
 // result
 // [
 //   { job: "Sales", country: "USA", avg_salary: 3500, max_salary: 7000 },
