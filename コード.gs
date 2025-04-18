@@ -71,12 +71,12 @@ function select(sheet, query, options) {
  * ```javascript
  * const ss = SpreadsheetApp.getActiveSpreadsheet();
  * const sheet = ss.getSheetByName("customers");
- * 
- * const record = {
- *   name: "Kenta",
- *   age: "28",
- *   country: "JPN"
- * }
+
+ * const record = { 
+ *   name: "Alice",
+ *   age: 30,
+ *   country: "USA"
+ * };
  * 
  * SSSQL.insert(sheet, record);
  * ``` 
@@ -96,8 +96,8 @@ function insert(sheet, record) {
  * const sheet = ss.getSheetByName("customers");
  * 
  * const records ={[
- *   { name: "Dave", age: "35", country: "UK" },
- *   { name: "Eve", age: "27", country: "USA" }
+ *   { name: "Alice", age: 30, country: "USA" },
+ *   { name: "Bob", age: 25, country: "USA" }
  * ]};
  * 
  * SSSQL.bulkInsert(sheet, records);
