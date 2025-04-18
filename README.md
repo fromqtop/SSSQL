@@ -94,7 +94,7 @@ The available comparison operators are described later. If both where and whereO
 ```javascript
 const result = SSSQL.select(sheet, {
   whereOr: {
-    age: [">", "20"],
+    age: [">", 20],
     country: ["=", "USA"]
   }
 });
@@ -149,7 +149,7 @@ const sheet = ss.getSheetByName("customers");
 
 const record = {
   name: "Charlie",
-  age: "28",
+  age: 28,
   country: "Canada"
 }
 
@@ -174,8 +174,8 @@ const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
 
 const records ={[
-  { name: "Dave", age: "35", country: "UK" },
-  { name: "Eve", age: "27", country: "Germany" }
+  { name: "Dave", age: 35, country: "UK" },
+  { name: "Eve", age: 27, country: "Germany" }
 ]};
 
 SSSQL.bulkInsert(sheet, records);
