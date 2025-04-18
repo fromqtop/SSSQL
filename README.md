@@ -35,7 +35,7 @@ const sheet = ss.getSheetByName("customers");
 const query = {
   columns: ["name", "age", "country"],
   where: {
-    age: [">", "20"],
+    age: [">", 20],
     country: ["=", "USA"]
   }
 };
