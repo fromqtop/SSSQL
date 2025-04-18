@@ -78,13 +78,18 @@ function select(sheet, query, options) {
  *   country: "USA"
  * };
  * 
- * SSSQL.insert(sheet, record);
+ * const result = SSSQL.insert(sheet, record);
+ * 
+ * // result
+ * // { name: "Alice", age: 30, country: "USA", job; null }
+ * //
  * ``` 
  */
 function insert(sheet, record) {
   const columns = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const array = getRecordAryByRecordObj_(record, columns);
   sheet.appendRow(array);
+  return arrayToObject(columns, array);
 }
 
 /**
@@ -100,7 +105,13 @@ function insert(sheet, record) {
  *   { name: "Bob", age: 25, country: "USA" }
  * ];
  * 
- * SSSQL.bulkInsert(sheet, records);
+ * const result = SSSQL.bulkInsert(sheet, records);
+ * 
+ * // result
+ * // [
+ * //   { name: "Alice", age: 30, country: "USA", job; null },
+ * //   { name: "Bob", age: 25, country: "USA", job; null }
+ * // ]
  * ``` 
  */
 function bulkInsert(sheet, records) {
@@ -111,6 +122,7 @@ function bulkInsert(sheet, records) {
   sheet
     .getRange(sheet.getLastRow() + 1, 1, arrays.length, columns.length)
     .setValues(arrays);
+  return arraysToObjects(columns, arrays);
 }
 
 /**
@@ -126,7 +138,15 @@ function bulkInsert(sheet, records) {
  *   where: { id: ["=", "alice@example.com"] }
  * };
  * 
- * SSSQL.update(sheet, query);
+ * const result = SSSQL.update(sheet, query);
+ * 
+ * // result
+ * // [
+ * //   {
+ * //     before: { id: "alice@example.com", name: "Alice", age: 30, country: "USA", phone: null },
+ * //     after: { id: "alice@example.com", name: "Bob", age: 25, country: "USA", phone: "090-1234-5678" }
+ * //   }
+ * // ]
  * ``` 
  */
 function update(sheet, query) {
@@ -134,6 +154,7 @@ function update(sheet, query) {
   const records = getTargetRecord_(sheet, query, { withRowNum: true });
 
   // レコード更新
+  const result = [];
   records.forEach(record => {
     const rownum = record.ROWNUM;
     delete record.ROWNUM;
@@ -150,7 +171,12 @@ function update(sheet, query) {
     
     // 更新実行
     sheet.getRange(rownum, 1, 1, columns.length).setValues([array]);
+    
+    // 戻り値をセット
+    result.push({ before: record, after: newRecord });
   })
+
+  return result;
 }
 
 /**
@@ -165,7 +191,12 @@ function update(sheet, query) {
  *   where: { id: "alice@example.com" }
  * };
  * 
- * SSSQL.remove(sheet, query);
+ * const result = SSSQL.remove(sheet, query);
+ * 
+ * // result
+ * // [
+ * //   { id: "alice@example.com", name: "Alice", age: 30, country: "USA" }
+ * // ]
  * ``` 
  */
 function remove(sheet, query) {
@@ -177,6 +208,8 @@ function remove(sheet, query) {
   
   // 削除実行
   records.forEach(record => sheet.deleteRow(record.ROWNUM));
+
+  return records.map(({ ROWNUM, ...rest }) => rest);
 }
 
 function filterRecords_(where, mode, columns, records) {
@@ -368,9 +401,13 @@ function getIndexMap_(columns) {
 
 function arraysToObjects(keys, records) {
   return records.map(record => 
-    record.reduce((acc, value, i) => {
-      acc[keys[i]] = value;
-      return acc;
-    }, {})
+    arrayToObject(keys, record)
   );
+}
+
+function arrayToObject(keys, record) {
+  return record.reduce((acc, value, i) => {
+    acc[keys[i]] = value;
+    return acc;
+  }, {})
 }
