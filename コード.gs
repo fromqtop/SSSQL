@@ -71,7 +71,7 @@ function select(sheet, query, options) {
  * ```javascript
  * const ss = SpreadsheetApp.getActiveSpreadsheet();
  * const sheet = ss.getSheetByName("customers");
-
+ *
  * const record = { 
  *   name: "Alice",
  *   age: 30,
