@@ -12,13 +12,13 @@ For instructions on how to use the library, please refer to the following link:<
 
 ## Methods
 
-| Method | Return type | Brief description |
-|--------|-------------|-------------------|
-| select(sheet, query, options?) | Records | Get data from the sheet that matches specified conditions. |
-| insert(sheet, record) | void | Insert a single row of data. |
-| bulkInsert(sheet, records) | void | Insert multiple rows of data. |
-| update(sheet, query) | void | Update data that meets specified conditions. |
-| remove(sheet, query) | void | Delete data that meets specified conditions. |
+| Method | Brief description |
+|--------|-------------------|
+| select(sheet, query, options?) | Get data from the sheet that matches specified conditions. |
+| insert(sheet, record) | Insert a single row of data. |
+| bulkInsert(sheet, records) | Insert multiple rows of data. |
+| update(sheet, query) | Update data that meets specified conditions. |
+| remove(sheet, query) | Delete data that meets specified conditions. |
 
 ---
 
@@ -144,16 +144,20 @@ Options such as return format and row number retrieval.
 Insert a single row of data.
 
 ```javascript
- const ss = SpreadsheetApp.getActiveSpreadsheet();
- const sheet = ss.getSheetByName("customers");
+const ss = SpreadsheetApp.getActiveSpreadsheet();
+const sheet = ss.getSheetByName("customers");
 
- const record = { 
-   name: "Alice",
-   age: 30,
-   country: "USA"
- };
+const record = { 
+  name: "Alice",
+  age: 30,
+  country: "USA"
+};
+
+const result = SSSQL.insert(sheet, record);
  
- SSSQL.insert(sheet, record);
+// result
+// { name: "Alice", age: 30, country: "USA", job; null }
+//
 ```
 
 #### Parameters
@@ -173,12 +177,13 @@ Insert multiple rows of data.
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
 
-const records = [
-   { name: "Alice", age: 30, country: "USA" },
-   { name: "Bob", age: 25, country: "USA" }
-];
-
-SSSQL.bulkInsert(sheet, records);
+const result = SSSQL.bulkInsert(sheet, records);
+ 
+// result
+// [
+//   { name: "Alice", age: 30, country: "USA", job; null },
+//   { name: "Bob", age: 25, country: "USA", job; null }
+// ]
 ```
 
 #### Parameters
@@ -203,7 +208,15 @@ const query = {
   where: { id: ["=", "alice@example.com"] }
 };
 
-SSSQL.update(sheet, query);
+const result = SSSQL.update(sheet, query);
+
+// result
+// [
+//   {
+//     before: { id: "alice@example.com", name: "Alice", age: 30, country: "USA", phone: null },
+//     after: { id: "alice@example.com", name: "Bob", age: 25, country: "USA", phone: "090-1234-5678" }
+//   }
+// ]
 ```
 
 #### Parameters
@@ -227,7 +240,12 @@ const query = {
   where: { id: "alice@example.com" }
 }
 
-SSSQL.remove(sheet, query);
+const result = SSSQL.remove(sheet, query);
+
+// result
+// [
+//   { id: "alice@example.com", name: "Alice", age: 30, country: "USA" }
+// ]
 ```
 
 #### Parameters
