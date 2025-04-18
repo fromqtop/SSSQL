@@ -36,7 +36,7 @@ const query = {
   columns: ["name", "age", "country"],
   where: {
     age: [">", "20"],
-    country: ["=", "USA%"]
+    country: ["=", "USA"]
   }
 };
 
@@ -81,7 +81,7 @@ The available comparison operators are described later. If both where and whereO
 const result = SSSQL.select(sheet, {
   where: {
     age: [">", 20],
-    country: ["=", "USA%"]
+    country: ["=", "USA"]
   }
 })
 ```
@@ -95,7 +95,7 @@ The available comparison operators are described later. If both where and whereO
 const result = SSSQL.select(sheet, {
   whereOr: {
     age: [">", "20"],
-    country: ["=", "USA%"]
+    country: ["=", "USA"]
   }
 });
 ```
