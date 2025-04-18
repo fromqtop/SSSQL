@@ -3,7 +3,7 @@
 SSSQL is a Google Apps Script library that allows you to flexibly manipulate data in Google Sheets using SQL-like queries.
 
 ## How To Use
-The Script ID is `1a77MeteYMC2V0yfybM0joYomvKwYftef6GeXBqw8wj7mZqzEP3gVJru4`.
+The Script ID is `1QBRx0gJSXOadbTBGAO5V3MavDU_-8lS7wdNPZi3Bqyqro1AsjHnHRplc`.
 
 For instructions on how to use the library, please refer to the following link:<br>
 [Add a Library to Your Script Project](https://developers.google.com/apps-script/guides/libraries#add_a_library_to_your_script_project).
@@ -29,24 +29,24 @@ For instructions on how to use the library, please refer to the following link:<
 Get data from the sheet that matches specified conditions.
 
 ```javascript
-const ss = SpreadsheetApp.getActiveSpreadsheet();
-const sheet = ss.getSheetByName("customers");
-
-const query = {
-  columns: ["name", "age", "country"],
-  where: {
-    age: [">", 20],
-    country: ["=", "USA"]
-  }
-};
-
-const result = SSSQL.select(sheet, query);
-
-// result
-// [
-//   { name: "Alice", age: 30, country: "USA" },
-//   { name: "Bob", age: 25, country: "USA" }
-// ]
+ const ss = SpreadsheetApp.getActiveSpreadsheet();
+ const sheet = ss.getSheetByName("customers");
+ 
+ const query = {
+   columns: ["name", "age", "country"],
+   where: {
+     age: [">", 20],
+     country: ["=", "USA"]
+   }
+ };
+ 
+ const result = SSSQL.select(sheet, query);
+ 
+ // result
+ // [
+ //   { name: "Alice", age: 30, country: "USA" },
+ //   { name: "Bob", age: 25, country: "USA" }
+ // ]
 ```
 
 #### Parameters
@@ -144,16 +144,16 @@ Options such as return format and row number retrieval.
 Insert a single row of data.
 
 ```javascript
-const ss = SpreadsheetApp.getActiveSpreadsheet();
-const sheet = ss.getSheetByName("customers");
+ const ss = SpreadsheetApp.getActiveSpreadsheet();
+ const sheet = ss.getSheetByName("customers");
 
-const record = {
-  name: "Charlie",
-  age: 28,
-  country: "Canada"
-}
-
-SSSQL.insert(sheet, record);
+ const record = { 
+   name: "Alice",
+   age: 30,
+   country: "USA"
+ };
+ 
+ SSSQL.insert(sheet, record);
 ```
 
 #### Parameters
@@ -174,8 +174,8 @@ const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
 
 const records = [
-  { name: "Dave", age: 35, country: "UK" },
-  { name: "Eve", age: 27, country: "Germany" }
+   { name: "Alice", age: 30, country: "USA" },
+   { name: "Bob", age: 25, country: "USA" }
 ];
 
 SSSQL.bulkInsert(sheet, records);
