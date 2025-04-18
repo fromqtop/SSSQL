@@ -80,7 +80,7 @@ The available comparison operators are described later. If both where and whereO
 ```javascript
 const result = SSSQL.select(sheet, {
   where: {
-    age: [">", "20"],
+    age: [">", 20],
     country: ["=", "USA%"]
   }
 })
