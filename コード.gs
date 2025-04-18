@@ -9,8 +9,8 @@
  * const query = {
  *   columns: ["name", "age", "country"],
  *   where: {
- *     age: [">", "20"],
- *     country: ["=", "USA%"]
+ *     age: [">", 20],
+ *     country: ["=", "USA"]
  *   }
  * };
  * 
@@ -35,9 +35,9 @@ function select(sheet, query, options) {
 
   // where・whereOr指定時　条件を満たすレコードに絞込み
   if (query?.hasOwnProperty("where")) {
-    records = where(query.where, "every", columns, records);
+    records = filterRecords_(query.where, "every", columns, records);
   } else if (query?.hasOwnProperty("whereOr")) {
-    records = where(query.whereOr, "some", columns, records);
+    records = filterRecords_(query.whereOr, "some", columns, records);
   }
 
   // groupBy指定時　グループ化・集計
@@ -47,7 +47,7 @@ function select(sheet, query, options) {
 
   // orderBy指定時　レコードを並び替え
   if (query?.hasOwnProperty("orderBy")) {
-    records = orderRecords_(orderBy, columns, records)
+    records = orderRecords_(query.orderBy, columns, records)
   }
 
   // columns指定時　抽出するカラムを絞込み
@@ -71,7 +71,7 @@ function select(sheet, query, options) {
  * ```javascript
  * const ss = SpreadsheetApp.getActiveSpreadsheet();
  * const sheet = ss.getSheetByName("customers");
- *
+
  * const record = { 
  *   name: "Alice",
  *   age: 30,
@@ -95,10 +95,10 @@ function insert(sheet, record) {
  * const ss = SpreadsheetApp.getActiveSpreadsheet();
  * const sheet = ss.getSheetByName("customers");
  * 
- * const records ={[
+ * const records = [
  *   { name: "Alice", age: 30, country: "USA" },
  *   { name: "Bob", age: 25, country: "USA" }
- * ]};
+ * ];
  * 
  * SSSQL.bulkInsert(sheet, records);
  * ``` 
@@ -238,15 +238,15 @@ function orderRecords_(orderBy, columns, records) {
       throw new Error(`指定されたカラム "${key}" は存在しません。`);
     }
     return {
-      order: query.orderBy[key],
+      order: orderBy[key],
       index
     };
   });
 
   return records.sort((a, b) => {
     for (const item of sortCriteria) {
-      if (a[item.index] < b[item.index]) return item.order === "ASC" ? -1 : 1;
-      if (a[item.index] > b[item.index]) return item.order === "DESC" ?  1 : -1;
+      if (a[item.index] < b[item.index]) return item.order === "ASC" ? 1 : -1;
+      if (a[item.index] > b[item.index]) return item.order === "DESC" ?  -1 : 1;
     }
     return 0;
   });
@@ -333,6 +333,7 @@ function selectColumns_(targetColumns, columns, records) {
 }
 
 function getTargetRecord_(sheet, query) {
+  const selectQuery = {};
   if (query.hasOwnProperty("where")) {
     selectQuery.where = query.where;
   } else if (query.hasOwnProperty("whereOr")) {
