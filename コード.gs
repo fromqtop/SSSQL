@@ -1,10 +1,11 @@
 /**
- * シートからデータを抽出し、指定された条件に基づいて絞込み・整形を行います。
+ * Get data from the sheet that matches specified conditions.
  * 
- * ### 使用例
+ * ### USAGE
  * ```javascript
  * const ss = SpreadsheetApp.getActiveSpreadsheet();
  * const sheet = ss.getSheetByName("customers");
+ * 
  * const query = {
  *   columns: ["name", "age", "country"],
  *   where: {
@@ -12,11 +13,14 @@
  *     country: ["=", "USA%"]
  *   }
  * };
+ * 
  * const result = SSSQL.select(sheet, query);
  * 
  * // result
- * // { name: "Alice", age: 30, country: "USA" },
- * // { name: "Bob", age: 25, country: "USA" },
+ * // [
+ * //   { name: "Alice", age: 30, country: "USA" },
+ * //   { name: "Bob", age: 25, country: "USA" }
+ * // ]
  * ``` 
  */
 function select(sheet, query, options) {
@@ -61,17 +65,19 @@ function select(sheet, query, options) {
 }
 
 /**
- * シートに行を挿入します。
+ * Insert a single row of data.
  * 
- * ### 使用例
+ * ### USAGE
  * ```javascript
  * const ss = SpreadsheetApp.getActiveSpreadsheet();
  * const sheet = ss.getSheetByName("customers");
+ * 
  * const record = {
- *   name: "Alice",
- *   age: "30",
- *   country: "USA"
- * };
+ *   name: "Kenta",
+ *   age: "28",
+ *   country: "JPN"
+ * }
+ * 
  * SSSQL.insert(sheet, record);
  * ``` 
  */
@@ -82,16 +88,18 @@ function insert(sheet, record) {
 }
 
 /**
- * シートに複数行を追加します。
+ * Insert multiple rows of data.
  * 
- * ### 使用例
+ * ### USAGE
  * ```javascript
  * const ss = SpreadsheetApp.getActiveSpreadsheet();
  * const sheet = ss.getSheetByName("customers");
- * const records = [
- *   { name: "Alice", age: "30", country: "USA" },
- *   { name: "Bob", age: 25, country: "USA" },
- * };
+ * 
+ * const records ={[
+ *   { name: "Dave", age: "35", country: "UK" },
+ *   { name: "Eve", age: "27", country: "USA" }
+ * ]};
+ * 
  * SSSQL.bulkInsert(sheet, records);
  * ``` 
  */
@@ -106,16 +114,18 @@ function bulkInsert(sheet, records) {
 }
 
 /**
- * シート内の条件を満たす行更新します。
+ * Update data that meets specified conditions.
  * 
- * ### 使用例
+ * ### USAGE
  * ```javascript
  * const ss = SpreadsheetApp.getActiveSpreadsheet();
  * const sheet = ss.getSheetByName("customers");
+ * 
  * const query = {
  *   set: { phone: "090-1234-5678" },
- *   where: { id: "alice@example.com" }
+ *   where: { id: ["=", "alice@example.com"] }
  * };
+ * 
  * SSSQL.update(sheet, query);
  * ``` 
  */
@@ -144,15 +154,17 @@ function update(sheet, query) {
 }
 
 /**
- * シート内の条件を満たす行を削除します。
+ * Delete data that meets specified conditions.
  * 
- * ### 使用例
+ * ### USAGE
  * ```javascript
  * const ss = SpreadsheetApp.getActiveSpreadsheet();
  * const sheet = ss.getSheetByName("customers");
+ * 
  * const query = {
  *   where: { id: "alice@example.com" }
  * };
+ * 
  * SSSQL.remove(sheet, query);
  * ``` 
  */
@@ -164,7 +176,7 @@ function remove(sheet, query) {
   records.sort((a, b) => b.ROWNUM - a.ROWNUM);
   
   // 削除実行
-  records.forEach(record => sheet.deleteRow(record.ROWNUM))
+  records.forEach(record => sheet.deleteRow(record.ROWNUM));
 }
 
 function filterRecords_(where, mode, columns, records) {
