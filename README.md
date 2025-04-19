@@ -177,12 +177,17 @@ Insert multiple rows of data.
 const ss = SpreadsheetApp.getActiveSpreadsheet();
 const sheet = ss.getSheetByName("customers");
 
+const records = [
+  { name: "Alice", age: 30, country: "USA" },
+  { name: "Bob", age: 25, country: "USA" }
+];
+
 const result = SSSQL.bulkInsert(sheet, records);
  
 // result
 // [
-//   { name: "Alice", age: 30, country: "USA", job; null },
-//   { name: "Bob", age: 25, country: "USA", job; null }
+//   { name: "Alice", age: 30, country: "USA", job: null },
+//   { name: "Bob", age: 25, country: "USA", job: null }
 // ]
 ```
 
