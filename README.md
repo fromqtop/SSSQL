@@ -11,6 +11,9 @@ The Script ID is...
 For instructions on how to use the library, please refer to the following link:<br>
 [Add a Library to Your Script Project](https://developers.google.com/apps-script/guides/libraries#add_a_library_to_your_script_project).
 
+**Important:**
+Please do not use `HEAD`, as it may contain unstable changes. Always use a specific version for stable performance.
+
 ---
 
 ## Methods
