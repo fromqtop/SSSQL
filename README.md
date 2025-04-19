@@ -103,6 +103,7 @@ const result = SSSQL.select(sheet, {
 - **groupBy**
 
 Specify when grouping and aggregating data.
+As types of aggregation, `COUNT`, `SUM`, `AVG`, `MIN`, and `MAX` can be used with GROUP BY.
 
 ```javascript
 const result = SSSQL.select(sheet, {
