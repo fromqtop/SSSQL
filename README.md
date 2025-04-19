@@ -69,13 +69,13 @@ If this parameter is omitted, all columns will be retrieved.
 ```javascript
 const result = SSSQL.select(sheet, {
   columns: ["name", "age", "country"]
-})
+});
 ```
 
 - **where / whereOr**
 
 Specify the row extraction conditions. When multiple conditions are provided, rows that meet all(`where`)/any(`whereOr`) of the conditions will be extracted.
-The available comparison operators are described later. If both where and whereOr are omitted, all rows will be extracted.
+The available comparison operators are [described later](https://github.com/fromqtop/SSSQL/blob/main/README.md#comparison-operators). If both where and whereOr are omitted, all rows will be extracted.
 
 ```javascript
 const result = SSSQL.select(sheet, {
@@ -83,7 +83,7 @@ const result = SSSQL.select(sheet, {
     age: [">", 20],
     country: ["=", "USA"]
   }
-})
+});
 ```
 
 If you want to specify multiple extraction conditions for the same column, please add `$$` and sequential number to the end of the column name.
@@ -96,7 +96,7 @@ const result = SSSQL.select(sheet, {
     dateTime$$1: [">=", from],
     dateTime$$2: ["<", to]
   }
-})
+});
 ```
 
 - **groupBy**
