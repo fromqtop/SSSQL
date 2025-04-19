@@ -215,9 +215,23 @@ function remove(sheet, query) {
 function filterRecords_(where, mode, columns, records) {
   const indexMap = getIndexMap_(columns);
 
+  // whereオブジェクトを配列に展開
+  const conditions = Object.entries(where).map(entry => {
+    let column = entry[0];
+    const [operator, criteria] = entry[1];
+
+    // columnに$$を含む場合は$$の前までが正式カラム名（同一カラムに複数の条件を指定した場合に$$が付いている）
+    const $$index = column.indexOf("$$");
+    if ($$index !== -1) column = column.substring(0, $$index);
+
+    return { column, operator, criteria };
+  })
+
+  // 条件を満たすレコードのみ抽出
   return records.filter(record => {
-    return Object.entries(where)[mode](entry => {
-      const [column, [operator, criteria]] = entry;
+    // [mode]には every/some のいずれかが指定されている
+    return conditions[mode](condition => {
+      const { column, operator, criteria } = condition;
       const value = record[indexMap[column]];
       const regex = (operator === "LIKE" || operator === "NOT LIKE") 
         ? likeToRegex_(criteria)
@@ -228,6 +242,13 @@ function filterRecords_(where, mode, columns, records) {
 }
 
 function isValidValue_(value, operator, criteria, regex) {
+  // Date型の一致・不一致はオブジェクト同士の比較はNG
+  if (criteria instanceof Date) {
+    if (!(value instanceof Date)) return false;
+    criteria = criteria.getTime();
+    value = value.getTime();
+  }
+
   switch (operator) {
     case "=":
       return value === criteria;
