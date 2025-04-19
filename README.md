@@ -72,9 +72,9 @@ const result = SSSQL.select(sheet, {
 })
 ```
 
-- **where**
+- **where / whereOr**
 
-Specify the row extraction conditions. When multiple conditions are provided, rows that meet all of the conditions will be extracted.
+Specify the row extraction conditions. When multiple conditions are provided, rows that meet all(`where`)/any(`whereOr`) of the conditions will be extracted.
 The available comparison operators are described later. If both where and whereOr are omitted, all rows will be extracted.
 
 ```javascript
@@ -86,18 +86,17 @@ const result = SSSQL.select(sheet, {
 })
 ```
 
-- **whereOr**
-
-Specify the row extraction conditions. When multiple conditions are provided, rows that meet any of the conditions will be extracted.
-The available comparison operators are described later. If both where and whereOr are omitted, all rows will be extracted.
+If you want to specify multiple extraction conditions for the same column, please add `$$` and sequential number to the end of the column name.
 
 ```javascript
+const from = new Date(2025, 4, 1);
+const to = new Date(2025, 4, 2);
 const result = SSSQL.select(sheet, {
-  whereOr: {
-    age: [">", 20],
-    country: ["=", "USA"]
+  where: {
+    dateTime$$1: [">=", from],
+    dateTime$$2: ["<", to]
   }
-});
+})
 ```
 
 - **groupBy**
