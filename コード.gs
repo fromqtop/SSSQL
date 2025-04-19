@@ -298,9 +298,9 @@ function orderRecords_(orderBy, columns, records) {
   });
 
   return records.sort((a, b) => {
-    for (const item of sortCriteria) {
-      if (a[item.index] < b[item.index]) return item.order === "ASC" ? 1 : -1;
-      if (a[item.index] > b[item.index]) return item.order === "DESC" ?  -1 : 1;
+    for (const { order, index } of sortCriteria) {
+      if (a[index] < b[index]) return order === "ASC" ? -1 : 1;
+      if (a[index] > b[index]) return order === "ASC" ?  1 : -1;
     }
     return 0;
   });
