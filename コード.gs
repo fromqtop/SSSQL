@@ -105,13 +105,15 @@ class SSSQL {
 
   /**
    * groupBy() と組み合わせて、グループごとに複数の集計値を同時に取得する。
-   * spec の形式: { 出力キー名: { sum|avg|max|min: "カラム名" } | { count: true } }
+   * spec の形式: { 出力キー名: { sum|avg|max|min: "カラム名" } | { count: "*"|"カラム名" } }
+   * count: "*" は全行数、count: "カラム名" はそのカラムが空文字・null・undefinedでない行数を返す。
    *
    * @example
    * db.groupBy("department").aggregate({
    *   totalScore: { sum: "score" },
    *   maxScore: { max: "score" },
-   *   memberCount: { count: true }
+   *   memberCount: { count: "*" },
+   *   emailCount: { count: "email" }
    * }).all();
    */
   aggregate(spec) {
@@ -677,7 +679,8 @@ class SSSQL {
   }
 
   /**
-   * aggregate() の1つの指定（例: { sum: "score" } や { count: true }）を計算する。
+   * aggregate() の1つの指定（例: { sum: "score" } や { count: "*" }）を計算する。
+   * count: "*" は全行数、count: "カラム名" はそのカラムが空文字・null・undefined でない行数を返す。
    */
   _computeAggregate(rows, spec) {
     const entries = Object.entries(spec);
@@ -688,7 +691,8 @@ class SSSQL {
 
     switch (type) {
       case "count":
-        return rows.length;
+        if (column === "*") return rows.length;
+        return rows.filter(r => !this._isEmptyValue(r.data[column])).length;
       case "sum": {
         const values = this._extractNumeric(rows, column);
         return values.reduce((a, b) => a + b, 0);
@@ -708,6 +712,14 @@ class SSSQL {
       default:
         throw new Error(`Unknown aggregate type: ${type}`);
     }
+  }
+
+  /**
+   * 値が「空」（空文字・null・undefined）かどうかを判定する。
+   * orderBy()のソート時の空判定と同じ基準（0やfalseは「値あり」として扱う）。
+   */
+  _isEmptyValue(value) {
+    return value === "" || value === null || value === undefined;
   }
 
   /**
@@ -818,8 +830,8 @@ class SSSQL {
         let vb = getData(b)[column];
 
         // 空データ（空文字、null、undefined）は常に後ろに送る
-        const vaIsEmpty = va === "" || va === null || va === undefined;
-        const vbIsEmpty = vb === "" || vb === null || vb === undefined;
+        const vaIsEmpty = this._isEmptyValue(va);
+        const vbIsEmpty = this._isEmptyValue(vb);
         if (vaIsEmpty && vbIsEmpty) continue;
         if (vaIsEmpty) return 1;
         if (vbIsEmpty) return -1;
