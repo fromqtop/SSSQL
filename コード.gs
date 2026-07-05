@@ -13,7 +13,7 @@ class SSSQL {
       rows: null // 行データのキャッシュ
     };
 
-    // クエリの状態（クローンごとに個別。where/orderBy/groupBy/select/offset/useCache/aggregateで新しいクローンに設定される）
+    // クエリの状態（クローンごとに個別。where/orderBy/groupBy/select/offset/readCache/aggregateで新しいクローンに設定される）
     this._condition = null;
     this._orderBy = null;
     this._useCache = false;
@@ -147,9 +147,10 @@ class SSSQL {
   }
 
   /**
-   * 次の実行でキャッシュを利用する。呼ぶたびに新しいクローンを返す。
+   * 次の実行でキャッシュを参照する（読み込みは常に行われ、これはあくまで「参照するかどうか」の指定）。
+   * 呼ぶたびに新しいクローンを返す。
    */
-  useCache() {
+  readCache() {
     const clone = this._clone();
     clone._useCache = true;
     return clone;
@@ -210,40 +211,39 @@ class SSSQL {
 
   /**
    * 条件に一致する行数を返す。
-   * groupBy()と組み合わせた場合は、まずグループごとの件数を求め、
-   * having()で絞り込んだ後の「グループの数」を返す。
+   * groupBy()と組み合わせた場合は、having()で絞り込んだ後の「グループの数」を返す。
    */
   count() {
     this._assertNoOffset("count");
     this._assertHavingRequiresGroupBy();
-    this._assertNoAggregateSpec("count");
     if (this._groupBy) {
       this._assertNoOrderByForScalarAggregate("count");
-      const groupCounts = this._groupedValues("count", rows => rows.length);
-      return groupCounts.length;
+      const { rows } = this._groupedResultRows();
+      return rows.length;
     }
     return this._filteredRows().length;
   }
 
   /**
    * 指定したカラムの合計値を返す。数値でない値は無視する。
-   * groupBy()と組み合わせた場合は、各グループのsumを求めた後、
-   * having()で絞り込み、その「グループごとのsumの配列」をさらにsumする。
+   * groupBy()と組み合わせた場合、column には groupBy()のキー、または aggregate()の出力キー
+   * （groupBy()で作られた「結果テーブル」に実際に存在するカラム）を指定する。
+   * それらに存在しないカラムを指定するとエラーになる。
    */
   sum(column) {
     this._assertNoOffset("sum");
     this._assertHavingRequiresGroupBy();
-    this._assertNoAggregateSpec("sum");
-    if (!this.headerSet.has(column)) {
-      throw new Error(`Unknown column: ${column}`);
-    }
     if (this._groupBy) {
       this._assertNoOrderByForScalarAggregate("sum");
-      const groupSums = this._groupedValues(`${column}_sum`, rows => {
-        const values = this._extractNumeric(rows, column);
-        return values.reduce((a, b) => a + b, 0);
-      });
-      return groupSums.reduce((a, b) => a + b, 0);
+      const { rows, allowedKeys } = this._groupedResultRows();
+      if (!allowedKeys.has(column)) {
+        throw new Error(`Unknown column: ${column} (groupBy()のキー、またはaggregate()の出力キーを指定してください)`);
+      }
+      const values = this._extractNumericPlain(rows, column);
+      return values.reduce((a, b) => a + b, 0);
+    }
+    if (!this.headerSet.has(column)) {
+      throw new Error(`Unknown column: ${column}`);
     }
     const values = this._extractNumeric(this._filteredRows(), column);
     return values.reduce((a, b) => a + b, 0);
@@ -251,24 +251,22 @@ class SSSQL {
 
   /**
    * 指定したカラムの平均値を返す。数値でない値は無視する。対象が0件の場合はnullを返す。
-   * groupBy()と組み合わせた場合は、各グループのavgを求めた後、
-   * having()で絞り込み、その「グループごとのavgの配列」をさらにavgする（avg-of-avg）。
+   * groupBy()と組み合わせた場合、column には groupBy()のキー、または aggregate()の出力キーを指定する。
    */
   avg(column) {
     this._assertNoOffset("avg");
     this._assertHavingRequiresGroupBy();
-    this._assertNoAggregateSpec("avg");
-    if (!this.headerSet.has(column)) {
-      throw new Error(`Unknown column: ${column}`);
-    }
     if (this._groupBy) {
       this._assertNoOrderByForScalarAggregate("avg");
-      const groupAvgs = this._groupedValues(`${column}_avg`, rows => {
-        const values = this._extractNumeric(rows, column);
-        return values.length === 0 ? null : values.reduce((a, b) => a + b, 0) / values.length;
-      });
-      const numericGroupAvgs = groupAvgs.filter(v => typeof v === "number" && !isNaN(v));
-      return numericGroupAvgs.length === 0 ? null : numericGroupAvgs.reduce((a, b) => a + b, 0) / numericGroupAvgs.length;
+      const { rows, allowedKeys } = this._groupedResultRows();
+      if (!allowedKeys.has(column)) {
+        throw new Error(`Unknown column: ${column} (groupBy()のキー、またはaggregate()の出力キーを指定してください)`);
+      }
+      const values = this._extractNumericPlain(rows, column);
+      return values.length === 0 ? null : values.reduce((a, b) => a + b, 0) / values.length;
+    }
+    if (!this.headerSet.has(column)) {
+      throw new Error(`Unknown column: ${column}`);
     }
     const values = this._extractNumeric(this._filteredRows(), column);
     return values.length === 0 ? null : values.reduce((a, b) => a + b, 0) / values.length;
@@ -276,24 +274,22 @@ class SSSQL {
 
   /**
    * 指定したカラムの最大値を返す。数値・Date以外は無視する。対象が0件の場合はnullを返す。
-   * groupBy()と組み合わせた場合は、各グループのmaxを求めた後、
-   * having()で絞り込み、その「グループごとのmaxの配列」からさらにmaxを取る。
+   * groupBy()と組み合わせた場合、column には groupBy()のキー、または aggregate()の出力キーを指定する。
    */
   max(column) {
     this._assertNoOffset("max");
     this._assertHavingRequiresGroupBy();
-    this._assertNoAggregateSpec("max");
-    if (!this.headerSet.has(column)) {
-      throw new Error(`Unknown column: ${column}`);
-    }
     if (this._groupBy) {
       this._assertNoOrderByForScalarAggregate("max");
-      const groupMaxes = this._groupedValues(`${column}_max`, rows => {
-        const values = this._extractComparable(rows, column);
-        return values.length === 0 ? null : values.reduce((a, b) => (b > a ? b : a));
-      });
-      const comparableGroupMaxes = groupMaxes.filter(v => (typeof v === "number" && !isNaN(v)) || v instanceof Date);
-      return comparableGroupMaxes.length === 0 ? null : comparableGroupMaxes.reduce((a, b) => (b > a ? b : a));
+      const { rows, allowedKeys } = this._groupedResultRows();
+      if (!allowedKeys.has(column)) {
+        throw new Error(`Unknown column: ${column} (groupBy()のキー、またはaggregate()の出力キーを指定してください)`);
+      }
+      const values = this._extractComparablePlain(rows, column);
+      return values.length === 0 ? null : values.reduce((a, b) => (b > a ? b : a));
+    }
+    if (!this.headerSet.has(column)) {
+      throw new Error(`Unknown column: ${column}`);
     }
     const values = this._extractComparable(this._filteredRows(), column);
     return values.length === 0 ? null : values.reduce((a, b) => (b > a ? b : a));
@@ -301,24 +297,22 @@ class SSSQL {
 
   /**
    * 指定したカラムの最小値を返す。数値・Date以外は無視する。対象が0件の場合はnullを返す。
-   * groupBy()と組み合わせた場合は、各グループのminを求めた後、
-   * having()で絞り込み、その「グループごとのminの配列」からさらにminを取る。
+   * groupBy()と組み合わせた場合、column には groupBy()のキー、または aggregate()の出力キーを指定する。
    */
   min(column) {
     this._assertNoOffset("min");
     this._assertHavingRequiresGroupBy();
-    this._assertNoAggregateSpec("min");
-    if (!this.headerSet.has(column)) {
-      throw new Error(`Unknown column: ${column}`);
-    }
     if (this._groupBy) {
       this._assertNoOrderByForScalarAggregate("min");
-      const groupMins = this._groupedValues(`${column}_min`, rows => {
-        const values = this._extractComparable(rows, column);
-        return values.length === 0 ? null : values.reduce((a, b) => (b < a ? b : a));
-      });
-      const comparableGroupMins = groupMins.filter(v => (typeof v === "number" && !isNaN(v)) || v instanceof Date);
-      return comparableGroupMins.length === 0 ? null : comparableGroupMins.reduce((a, b) => (b < a ? b : a));
+      const { rows, allowedKeys } = this._groupedResultRows();
+      if (!allowedKeys.has(column)) {
+        throw new Error(`Unknown column: ${column} (groupBy()のキー、またはaggregate()の出力キーを指定してください)`);
+      }
+      const values = this._extractComparablePlain(rows, column);
+      return values.length === 0 ? null : values.reduce((a, b) => (b < a ? b : a));
+    }
+    if (!this.headerSet.has(column)) {
+      throw new Error(`Unknown column: ${column}`);
     }
     const values = this._extractComparable(this._filteredRows(), column);
     return values.length === 0 ? null : values.reduce((a, b) => (b < a ? b : a));
@@ -493,9 +487,9 @@ class SSSQL {
     this._assertKnownColumns(condition);
     this._assertKnownColumns(values);
 
-    // useCache()を挟むことで、first()で読んだ内容をupdate()でも再利用し、
+    // readCache()を挟むことで、first()で読んだ内容をupdate()でも再利用し、
     // シートへのアクセスを1回にまとめる
-    const queryable = this.useCache().where(condition);
+    const queryable = this.readCache().where(condition);
     const existing = queryable.first();
 
     if (existing) {
@@ -578,17 +572,6 @@ class SSSQL {
   }
 
   /**
-   * aggregate() が設定されている状態で、count()/sum()/avg()/max()/min() を呼んだ場合にエラーを投げる。
-   * aggregate() は all()/first()/take() と組み合わせて使うものなので、
-   * 単一集計メソッドと一緒に指定されていると、aggregate()の内容が黙って無視されてしまうため。
-   */
-  _assertNoAggregateSpec(methodName) {
-    if (this._aggregateSpec) {
-      throw new Error(`${methodName}() は aggregate() と併用できません（aggregateは all()/first()/take() と組み合わせて使用します）`);
-    }
-  }
-
-  /**
    * offset()/take() に渡された値が「0以上の整数」であることを検証する。
    * 負数・小数・文字列などが渡された場合、sliceに予期しない挙動（負数は末尾から、
    * 文字列はNaN扱いになる等）をさせず、早期にエラーで気づけるようにする。
@@ -635,38 +618,25 @@ class SSSQL {
   }
 
   /**
-   * groupBy() + aggregate() の結果を組み立てる。
-   * aggregate() が指定されていなければ、グループキーのみの配列を返す（distinctに近い）。
+   * groupBy() + aggregate() の「結果テーブル」を組み立てる（having()で絞り込み済み、orderBy()は未適用）。
+   * 各行は { ...グループキー, ...aggregate()の出力キー（指定されていれば） } という形になる。
+   * count()/sum()/avg()/max()/min() や、all()/first()/take()（groupBy時）の土台になる。
+   * @returns {{rows: Object[], allowedKeys: Set<string>}}
    */
-  _groupedAggregateRows() {
+  _groupedResultRows() {
     const groups = this._groupedRows();
 
-    const result = groups.map(g => {
-      if (!this._aggregateSpec) return { ...g.key };
+    const rows = groups.map(g => {
       const row = { ...g.key };
-      Object.entries(this._aggregateSpec).forEach(([outKey, spec]) => {
-        row[outKey] = this._computeAggregate(g.rows, spec);
-      });
+      if (this._aggregateSpec) {
+        Object.entries(this._aggregateSpec).forEach(([outKey, spec]) => {
+          row[outKey] = this._computeAggregate(g.rows, spec);
+        });
+      }
       return row;
     });
 
     const allowedKeys = new Set([...this._groupBy, ...(this._aggregateSpec ? Object.keys(this._aggregateSpec) : [])]);
-    return this._applyHavingAndOrder(result, allowedKeys);
-  }
-
-  /**
-   * groupBy() + count()/sum()/avg()/max()/min() が使う。
-   * 各グループに対して computeFn で集計値（outputKey）を計算し、having() で絞り込んだ後、
-   * その「グループごとの集計値」だけを配列で返す（呼び出し元がさらに集計する）。
-   * orderBy() はここでは適用しない（最終的に単一の値へ畳み込むため、順序に意味がない）。
-   * @param {string} outputKey - having()の条件キーとして使える名前（例: "count", "age_sum"）
-   * @param {(rows: Array) => *} computeFn - グループ内の行から集計値を計算する関数
-   * @returns {Array} グループごとの集計値の配列（having()で絞り込んだ後）
-   */
-  _groupedValues(outputKey, computeFn) {
-    const groups = this._groupedRows();
-    const rows = groups.map(g => ({ ...g.key, [outputKey]: computeFn(g.rows) }));
-    const allowedKeys = new Set([...this._groupBy, outputKey]);
 
     let filtered = rows;
     if (this._havingCondition) {
@@ -674,23 +644,16 @@ class SSSQL {
       filtered = filtered.filter(row => this._evaluate(row, this._havingCondition, false));
     }
 
-    return filtered.map(row => row[outputKey]);
+    return { rows: filtered, allowedKeys };
   }
 
   /**
-   * groupBy()結果（プレーンなオブジェクトの配列）に having()/orderBy() を適用する共通処理。
-   * キーはグループキーや集計の出力キーであり、シート上の実カラムではない場合があるため、
-   * 列存在チェック（validateColumns）は行わない。ただし having() の条件キーは
-   * allowedKeys（groupBy()のキー＋集計の出力キー）と照合し、タイポ等の未知キーを検出する。
+   * groupBy() + aggregate() の結果を、all()/first()/take() 用に組み立てる（orderBy()も適用する）。
+   * aggregate() が指定されていなければ、グループキーのみの配列を返す（distinctに近い）。
    */
-  _applyHavingAndOrder(rows, allowedKeys) {
-    let result = rows;
-    if (this._havingCondition) {
-      this._assertHavingKeysValid(this._havingCondition, allowedKeys);
-      result = result.filter(row => this._evaluate(row, this._havingCondition, false));
-    }
-    result = this._applyOrderBy(result, r => r, false);
-    return result;
+  _groupedAggregateRows() {
+    const { rows } = this._groupedResultRows();
+    return this._applyOrderBy(rows, r => r, false);
   }
 
   /**
@@ -793,6 +756,26 @@ class SSSQL {
   }
 
   /**
+   * プレーンなオブジェクトの配列（groupBy()の結果テーブルなど）から、
+   * 指定カラムの数値だけを抜き出す（sum/avg用）。_extractNumericとの違いは
+   * 行が {rowIndex, data} 形式ではなく、そのままのオブジェクトである点。
+   */
+  _extractNumericPlain(rows, column) {
+    return rows
+      .map(r => r[column])
+      .filter(v => typeof v === "number" && !isNaN(v));
+  }
+
+  /**
+   * プレーンなオブジェクトの配列から、指定カラムの数値またはDateだけを抜き出す（max/min用）。
+   */
+  _extractComparablePlain(rows, column) {
+    return rows
+      .map(r => r[column])
+      .filter(v => (typeof v === "number" && !isNaN(v)) || v instanceof Date);
+  }
+
+  /**
    * 条件・ソート順を適用した行データを返す（offsetは適用しない）。
    */
   _filteredRows() {
@@ -858,7 +841,7 @@ class SSSQL {
       return this._sharedState.rows;
     }
     const rows = this._fetchAllRows();
-    this._sharedState.rows = rows; // 常に保存する（useCacheの指定に関わらず）
+    this._sharedState.rows = rows; // 常に保存する（readCacheの指定に関わらず）
     return rows;
   }
 
