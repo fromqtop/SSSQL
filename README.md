@@ -107,10 +107,13 @@ db.exists();                      // 該当があるかどうか
 db.groupBy("department").aggregate({
   totalScore: { sum: "score" },
   maxScore: { max: "score" },
-  memberCount: { count: true }
+  memberCount: { count: "*" },
+  emailCount: { count: "email" }
 }).all();
-// [{department: "営業", totalScore: 4500000, maxScore: 95, memberCount: 12}, ...]
+// [{department: "営業", totalScore: 4500000, maxScore: 95, memberCount: 12, emailCount: 10}, ...]
 ```
+
+`count: "*"` はグループの全行数、`count: "カラム名"` はそのカラムが空文字・`null`・`undefined` でない行数を返します。
 
 `aggregate` を付けなければ、グループキーだけの一覧になります（`distinct` に近い動き）。
 
