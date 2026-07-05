@@ -34,12 +34,12 @@ const db = new SSSQL(spreadsheetId, sheetName, headerRow, dataStartRow);
 ```javascript
 const db = SSSQL.createSSSQL(spreadsheetId, "Users", 2);
 
-db.all();                                        // 全件
-db.where({ status: "active" }).all();            // 条件指定
-db.orderBy({ age: "desc" }).all();                // 並び替え
-db.select("id", "name").all();                    // 列を絞る
-db.where({ id: 5 }).first();                      // 1件だけ
-db.where({ status: "active" }).count();           // 件数
+db.all();                                               // 全件
+db.where({ status: "active", age: [">=", 20] }).all();  // 条件指定
+db.orderBy({ age: "desc" }).all();                      // 並び替え
+db.select("id", "name").all();                          // 列を絞る
+db.where({ id: 5 }).first();                            // 1件だけ
+db.where({ status: "active" }).count();                 // 件数
 
 db.insert({ id: 11, name: "山田次郎", status: "active" });
 db.where({ id: 11 }).update({ status: "inactive" });
@@ -52,7 +52,7 @@ db.where({ id: 11 }).delete();
 
 | メソッド | 説明 |
 |---|---|
-| `where(condition)` | 検索条件を指定する。複数回呼ぶと上書きされる（ANDにしたい場合は `{ AND: [...] }` を書く） |
+| `where(condition)` | 検索条件を指定する。複数プロパティ指定可能。複数回呼ぶと上書きされる。（AND条件にしたい場合は `{ AND: [...] }` を書く） |
 | `orderBy(order)` | 並び替え。`{ age: "desc", name: "asc" }` のように複数カラム指定可 |
 | `select(...cols)` | 取得する列を絞る |
 | `offset(n)` | `orderBy` で並べ替えた後の結果から、先頭 `n` 件をスキップする（`all` / `first` / `take` にのみ効く） |
