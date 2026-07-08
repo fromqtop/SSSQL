@@ -934,22 +934,23 @@ class SSSQL {
 
   _evaluateField(cellValue, value) {
     if (!Array.isArray(value)) {
-      return cellValue === value; // 完全一致
+      // 完全一致の省略記法（{status: "active"} など）。"="演算子と同じ扱いにする
+      return this._normalizeForComparison(cellValue) === this._normalizeForComparison(value);
     }
     const [operator, ...args] = value;
     const cv = this._normalizeForComparison(cellValue);
 
     switch (operator) {
-      case "=":             return cellValue === args[0];
-      case "<>":            return cellValue !== args[0];
+      case "=":             return cv === this._normalizeForComparison(args[0]);
+      case "<>":            return cv !== this._normalizeForComparison(args[0]);
       case ">":             return cv > this._normalizeForComparison(args[0]);
       case ">=":            return cv >= this._normalizeForComparison(args[0]);
       case "<":             return cv < this._normalizeForComparison(args[0]);
       case "<=":            return cv <= this._normalizeForComparison(args[0]);
       case "BETWEEN":       return cv >= this._normalizeForComparison(args[0]) && cv <= this._normalizeForComparison(args[1]);
       case "NOT BETWEEN":   return !(cv >= this._normalizeForComparison(args[0]) && cv <= this._normalizeForComparison(args[1]));
-      case "IN":            return args[0].includes(cellValue);
-      case "NOT IN":        return !args[0].includes(cellValue);
+      case "IN":            return args[0].some(v => this._normalizeForComparison(v) === cv);
+      case "NOT IN":        return !args[0].some(v => this._normalizeForComparison(v) === cv);
       case "LIKE":          return this._like(cellValue, args[0]);
       case "NOT LIKE":      return !this._like(cellValue, args[0]);
       default:
