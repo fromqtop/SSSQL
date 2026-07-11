@@ -25,6 +25,7 @@ class SSSQL {
     this._aggregateSpec = null;
     this._havingCondition = null;
     this._useSheetsApi = false;
+    this._useKeyScan = false;
   }
 
   // ---- 遅延取得プロパティ（クローン間で共有） ----
@@ -193,6 +194,21 @@ class SSSQL {
   useSheetsApi() {
     const clone = this._clone();
     clone._useSheetsApi = true;
+    return clone;
+  }
+
+  /**
+   * where()の条件に登場する列だけを先に読み込んで絞り込み、
+   * 該当する行だけを取得する2段階の読み込み戦略に切り替える。
+   * useSheetsApi() と組み合わせた場合のみ有効（Sheets APIのbatchGetで、
+   * 飛び飛びの行でも1回のリクエストでまとめて取得できるため）。
+   * useSheetsApi() を伴わない場合は無視され、通常通り動作する
+   * （SpreadsheetApp には、複数の行範囲を1回でまとめて取得する手段が無いため）。
+   * 呼ぶたびに新しいクローンを返す。
+   */
+  keyScan() {
+    const clone = this._clone();
+    clone._useKeyScan = true;
     return clone;
   }
 
@@ -572,6 +588,7 @@ class SSSQL {
     clone._aggregateSpec = this._shallowCopy(this._aggregateSpec);
     clone._havingCondition = this._shallowCopy(this._havingCondition);
     clone._useSheetsApi = this._useSheetsApi;
+    clone._useKeyScan = this._useKeyScan;
     return clone;
   }
 
@@ -972,8 +989,13 @@ class SSSQL {
    * 条件だけを適用した行データを返す（ソート・offsetは適用しない）。
    * groupBy()を使う場合、グループ化前の生データの並び順は結果に意味を持たない
    * （orderBy()は集計後の結果に適用されるべきもの）ため、こちらを使う。
+   * keyScan() + useSheetsApi() + where() が揃っている場合は、
+   * 条件に使われている列だけを先に読み込んで絞り込む2段階の取得戦略を使う。
    */
   _rawFilteredRows() {
+    if (this._useKeyScan && this._useSheetsApi && this._condition) {
+      return this._keyScanFetch();
+    }
     const rows = this._getRows();
     return rows.filter(r => this._evaluate(r.data, this._condition || {}));
   }
@@ -1152,6 +1174,128 @@ class SSSQL {
       rowIndex: this.dataStartRow + i,
       data: this._rowToDict(this._padRow(row, header.length))
     }));
+  }
+
+  /**
+   * keyScan(): where()の条件に登場する列だけを先に読み込んで、条件に一致する行番号を特定し、
+   * 該当する行だけを batchGet でまとめて取得する。範囲は常に開いた形式（"C3:C"）で取得する
+   * （Sheets APIは範囲を閉じても末尾の空セルを省略して返すため、閉じることに意味が無い）。
+   *
+   * 条件に「空文字が一致しうるリーフ条件」が含まれる場合（例: {status: ""} や {status: ["<>", "active"]}）、
+   * 列の末尾に空セルが連続していると、Sheets APIがその部分を省略して返すため、
+   * APIが返した配列の長さだけでは本来の行数を正しく把握できない。そのため、その場合だけ
+   * 正確な最終行（getLastRow()）を取得し、それを基準にループ回数を決めることで、
+   * 省略された分の行を「空文字」として正しく扱う（安全な場合はこの追加取得は行わない）。
+   */
+  _keyScanFetch() {
+    const columns = [...this._collectConditionColumns(this._condition, new Set())];
+    columns.forEach(col => {
+      if (!this.headerSet.has(col)) {
+        throw new Error(`Unknown column: ${col}`);
+      }
+    });
+
+    if (columns.length === 0) {
+      // 条件がAND/ORだけで実質キーが無い等、特定できなければ通常取得にフォールバック
+      const rows = this._getRows();
+      return rows.filter(r => this._evaluate(r.data, this._condition || {}));
+    }
+
+    // 空文字が条件に一致しうる場合、末尾の空セル省略によって行数を見誤るリスクがあるため、
+    // 正確な最終行を確認しておき、ループする行数の計算に使う
+    // （範囲自体は開いた形式のままでよい。閉じてもAPI側の末尾省略は解消されないため、
+    // 　「APIが返した長さ」ではなく「lastRowから計算した長さ」でループし、
+    // 　足りない分は空文字として扱うことで正しさを保証する）
+    const needsExactLastRow = this._hasEmptyValueRisk(this._condition);
+    const lastRow = needsExactLastRow ? this.sheet.getLastRow() : null;
+
+    const colRanges = columns.map(col => {
+      const colIndex = this.header.indexOf(col) + 1;
+      const letter = this._columnLetter(colIndex);
+      return `${this.sheetName}!${letter}${this.dataStartRow}:${letter}`;
+    });
+
+    const colResponse = this._sheetsApiBatchGet(colRanges);
+    const valueRanges = colResponse.valueRanges || [];
+    const scannedLen = needsExactLastRow
+      ? Math.max(0, lastRow - this.dataStartRow + 1)
+      : Math.max(0, ...valueRanges.map(vr => (vr.values || []).length));
+
+    const matchingRowIndexes = [];
+    for (let i = 0; i < scannedLen; i++) {
+      const partialData = {};
+      columns.forEach((col, colIdx) => {
+        const vals = valueRanges[colIdx].values || [];
+        partialData[col] = (vals[i] && vals[i][0] !== undefined) ? vals[i][0] : "";
+      });
+      if (this._evaluate(partialData, this._condition)) {
+        matchingRowIndexes.push(this.dataStartRow + i);
+      }
+    }
+
+    if (matchingRowIndexes.length === 0) return [];
+
+    const lastColLetter = this._columnLetter(this.header.length);
+    const rowRanges = matchingRowIndexes.map(r => `${this.sheetName}!A${r}:${lastColLetter}${r}`);
+    const rowResponse = this._sheetsApiBatchGet(rowRanges);
+    const rowValueRanges = rowResponse.valueRanges || [];
+
+    return matchingRowIndexes.map((rowIndex, i) => {
+      const row = (rowValueRanges[i] && rowValueRanges[i].values && rowValueRanges[i].values[0]) || [];
+      return {
+        rowIndex,
+        data: this._rowToDict(this._padRow(row, this.header.length))
+      };
+    });
+  }
+
+  /**
+   * where()の条件（AND/ORのネスト可）に登場する列名をすべて集める。
+   */
+  _collectConditionColumns(condition, into) {
+    if (condition.AND) {
+      condition.AND.forEach(sub => this._collectConditionColumns(sub, into));
+      return into;
+    }
+    if (condition.OR) {
+      condition.OR.forEach(sub => this._collectConditionColumns(sub, into));
+      return into;
+    }
+    Object.keys(condition).forEach(key => into.add(key));
+    return into;
+  }
+
+  /**
+   * keyScan()用: 条件（AND/ORのネスト可）の中に、
+   * 「空文字がその条件に一致してしまうリーフ条件」が含まれているか判定する。
+   * 含まれていれば、末尾の空セル省略によって行を見逃す可能性があるため、
+   * 正確な最終行を確認してから閉じた範囲でスキャンする必要がある。
+   */
+  _hasEmptyValueRisk(condition) {
+    if (condition.AND) {
+      return condition.AND.some(sub => this._hasEmptyValueRisk(sub));
+    }
+    if (condition.OR) {
+      return condition.OR.some(sub => this._hasEmptyValueRisk(sub));
+    }
+    return Object.values(condition).some(value => this._evaluateField("", value));
+  }
+
+  /**
+   * Sheets API の batchGet を呼ぶ共通処理。
+   */
+  _sheetsApiBatchGet(ranges) {
+    try {
+      return Sheets.Spreadsheets.Values.batchGet(this.spreadsheetId, {
+        ranges,
+        valueRenderOption: "UNFORMATTED_VALUE",
+        dateTimeRenderOption: "SERIAL_NUMBER"
+      });
+    } catch (e) {
+      throw new Error(
+        "Sheets API の呼び出しに失敗しました。GASプロジェクトの「サービス」から Sheets API (高度なサービス) を有効化しているか確認してください。元のエラー: " + e.message
+      );
+    }
   }
 
   /**
