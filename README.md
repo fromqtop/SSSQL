@@ -56,7 +56,8 @@ db.where({ id: 11 }).delete();
 | `orderBy(order)` | 並び替え。`{ age: "desc", name: "asc" }` のように複数カラム指定可 |
 | `select(...cols)` | 取得する列を絞る |
 | `offset(n)` | `orderBy` で並べ替えた後の結果から、先頭 `n` 件をスキップする（`all` / `first` / `take` にのみ効く） |
-| `readCache()` | 直前に取得したデータのキャッシュを参照する |
+| `readCache()` | 直前に取得したデータのキャッシュを参照する（詳細は [キャッシュ](#キャッシュ)） |
+| `useSheetsApi()` | Sheets API を使って読み書きする（詳細は [Sheets APIモード](#sheets-apiモード)） |
 
 ### where の条件記法
 
@@ -178,6 +179,26 @@ db.readCache().where({ status: "inactive" }).count();  // 2回目：さきほど
 ```
 
 `readCache()` を付けなければ常に最新の内容を取得します。`insert` / `update` / `delete` / `upsert` を行うとキャッシュは自動的に破棄されます。
+
+## Sheets APIモード
+
+`useSheetsApi()` を使うと、`SpreadsheetApp` の代わりに Sheets API（高度なサービス）を使ってシートを読み書きします。データ量が多い場合、こちらの方が高速になることがあります。読み取り（`select` / `count` / `all` / `first` など）と書き込み（`insert` / `update` / `delete`）の両方に対応しています。
+
+```javascript
+const q = db.useSheetsApi();
+q.where({ status: "active" }).all();
+q.insert({ id: 11, name: "山田次郎" });
+q.where({ id: 11 }).update({ status: "active" });
+q.where({ id: 11 }).delete();
+```
+
+**事前準備**: GASプロジェクトの左メニュー「サービス」から Sheets API を追加（有効化）しておく必要があります。有効化していない状態で使うとエラーになります。
+
+**注意点**:
+
+- 日付セルは `Date` オブジェクトではなく、シリアル値（数値）として返ります（読み取り時）。`BETWEEN` や `orderBy`、`max` / `min` といった大小比較は結果的に正しく動きますが、値そのものは日付ではなくただの数値として見えます。書き込み時に `Date` を渡した場合は、Sheets側で日付として認識される形式に変換して送るので、書き込まれたセルは通常どおり日付として表示されます。
+- `useSheetsApi()` は他のクエリ組み立てメソッドと同様、呼ぶたびに新しいクエリを返します。付けなければ今まで通り `SpreadsheetApp` 経由になります。
+- `delete()` の内部では、シートの識別に必要な情報取得のために `SpreadsheetApp` を使う箇所があります。「高速化のために Sheets API を積極的に使うモード」であって「`SpreadsheetApp` を一切使わないモード」ではないため、実利のある範囲で両方を使い分けています。
 
 ## エラーになる組み合わせ
 
