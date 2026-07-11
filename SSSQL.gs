@@ -11,7 +11,8 @@ class SSSQL {
       sheetId: null, // シートの数値ID（DeleteDimensionRequestで使う。取得したらキャッシュする）
       header: null,
       headerSet: null,
-      rows: null // 行データのキャッシュ
+      rows: { normal: null, sheetsApi: null } // 行データのキャッシュ（通常モードとSheets APIモードは別々に持つ。
+                                                // 日付の型が異なる(Date/シリアル値)ため混在させない）
     };
 
     // クエリの状態（クローンごとに個別。where/orderBy/groupBy/select/offset/readCache/aggregateで新しいクローンに設定される）
@@ -200,7 +201,7 @@ class SSSQL {
    * どのインスタンスから呼んでも、そこから生まれた／派生した全クローンに伝わる。
    */
   refreshCache() {
-    this._sharedState.rows = null;
+    this._sharedState.rows = { normal: null, sheetsApi: null };
     return this;
   }
 
@@ -420,7 +421,7 @@ class SSSQL {
 
     const rowsValues = rows.map(r => this._toRowValues(r));
     this._appendRows(rowsValues);
-    this._sharedState.rows = null; // 書き込みしたのでキャッシュは破棄
+    this._sharedState.rows = { normal: null, sheetsApi: null }; // 書き込みしたのでキャッシュは破棄
 
     const afterRows = rowsValues.map(values => this._rowToDict(values));
     return isMultiple ? afterRows : afterRows[0];
@@ -476,7 +477,7 @@ class SSSQL {
       });
     }
 
-    this._sharedState.rows = null; // 書き込みしたのでキャッシュは破棄
+    this._sharedState.rows = { normal: null, sheetsApi: null }; // 書き込みしたのでキャッシュは破棄
 
     return {
       count: changes.length,
@@ -520,7 +521,7 @@ class SSSQL {
       });
     }
 
-    this._sharedState.rows = null; // 書き込みしたのでキャッシュは破棄
+    this._sharedState.rows = { normal: null, sheetsApi: null }; // 書き込みしたのでキャッシュは破棄
 
     return {
       count: filtered.length,
@@ -1030,11 +1031,15 @@ class SSSQL {
   }
 
   _getRows() {
-    if (this._useCache && this._sharedState.rows) {
-      return this._sharedState.rows;
+    // 通常モードとSheets APIモードでは日付の型が異なる(Date/シリアル値)ため、
+    // キャッシュはモードごとに別々のキー(normal/sheetsApi)で持つ
+    const cacheKey = this._useSheetsApi ? "sheetsApi" : "normal";
+
+    if (this._useCache && this._sharedState.rows[cacheKey]) {
+      return this._sharedState.rows[cacheKey];
     }
     const rows = this._fetchAllRows();
-    this._sharedState.rows = rows; // 常に保存する（readCacheの指定に関わらず）
+    this._sharedState.rows[cacheKey] = rows; // 常に保存する（readCacheの指定に関わらず）
     return rows;
   }
 
