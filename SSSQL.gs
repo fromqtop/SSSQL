@@ -22,6 +22,7 @@ class SSSQL {
     this._selectCols = null;
     this._aggregateSpec = null;
     this._havingCondition = null;
+    this._useSheetsApi = false;
   }
 
   // ---- 遅延取得プロパティ（クローン間で共有） ----
@@ -37,10 +38,14 @@ class SSSQL {
 
   get header() {
     if (!this._sharedState.header) {
-      const lastCol = this.sheet.getLastColumn();
-      const header = lastCol === 0 ? [] : this.sheet.getRange(this.headerRow, 1, 1, lastCol).getValues()[0];
-      this._sharedState.header = header;
-      this._sharedState.headerSet = new Set(header);
+      if (this._useSheetsApi) {
+        this._fetchHeaderViaSheetsApi();
+      } else {
+        const lastCol = this.sheet.getLastColumn();
+        const header = lastCol === 0 ? [] : this.sheet.getRange(this.headerRow, 1, 1, lastCol).getValues()[0];
+        this._sharedState.header = header;
+        this._sharedState.headerSet = new Set(header);
+      }
     }
     return this._sharedState.header;
   }
@@ -155,6 +160,24 @@ class SSSQL {
   readCache() {
     const clone = this._clone();
     clone._useCache = true;
+    return clone;
+  }
+
+  /**
+   * 次の読み取り実行で、Sheets API（高度なサービス）を使ってデータを取得する。
+   * 呼ぶたびに新しいクローンを返す。事前にGASプロジェクトで
+   * 「サービス」から Sheets API を有効化しておく必要がある。
+   *
+   * 現時点では読み取り（select/count/first/all/take等）のみ対応。
+   * insert/update/delete は、このモードでも SpreadsheetApp 経由のまま動作する。
+   *
+   * 注意: 日付セルはJSの Date オブジェクトではなく、シリアル値（数値）として返る。
+   * BETWEEN/orderBy/max/min などの大小比較は結果的に正しく動くが、
+   * 見た目は日付ではなくただの数値になる。
+   */
+  useSheetsApi() {
+    const clone = this._clone();
+    clone._useSheetsApi = true;
     return clone;
   }
 
@@ -523,6 +546,7 @@ class SSSQL {
     clone._selectCols = this._shallowCopy(this._selectCols);
     clone._aggregateSpec = this._shallowCopy(this._aggregateSpec);
     clone._havingCondition = this._shallowCopy(this._havingCondition);
+    clone._useSheetsApi = this._useSheetsApi;
     return clone;
   }
 
@@ -590,11 +614,54 @@ class SSSQL {
   }
 
   _appendRows(rowsValues) {
+    if (this._useSheetsApi) {
+      this._appendRowsViaSheetsApi(rowsValues);
+      return;
+    }
     const startRow = Math.max(this.sheet.getLastRow(), this.dataStartRow - 1) + 1;
     const numRows = rowsValues.length;
     const numCols = this.header.length;
     if (numCols === 0) return; // ヘッダーがない場合は書き込まない
     this.sheet.getRange(startRow, 1, numRows, numCols).setValues(rowsValues);
+  }
+
+  /**
+   * Sheets API（高度なサービス）を使って行を追記する。this.sheet（SpreadsheetApp経由）には触れない。
+   * Date は事前にISO文字列へ変換し、valueInputOption: "USER_ENTERED" で送る
+   * （Sheets側で日付として自動認識されるようにするため）。
+   */
+  _appendRowsViaSheetsApi(rowsValues) {
+    if (this.header.length === 0) return; // ヘッダーがない場合は書き込まない
+
+    const values = rowsValues.map(row => row.map(v => this._toSheetsApiValue(v)));
+    const resource = { values };
+
+    try {
+      Sheets.Spreadsheets.Values.append(
+        resource,
+        this.spreadsheetId,
+        this.sheetName,
+        { valueInputOption: "USER_ENTERED", insertDataOption: "INSERT_ROWS" }
+      );
+    } catch (e) {
+      throw new Error(
+        "Sheets API の呼び出しに失敗しました。GASプロジェクトの「サービス」から Sheets API (高度なサービス) を有効化しているか確認してください。元のエラー: " + e.message
+      );
+    }
+  }
+
+  /**
+   * 書き込む値をSheets API向けに変換する。Dateはユーザーが手入力したのと同じ形式（ISO文字列）にし、
+   * valueInputOption: "USER_ENTERED" と組み合わせることで、Sheets側に日付として認識させる。
+   */
+  _toSheetsApiValue(value) {
+    if (value instanceof Date) {
+      // "YYYY-MM-DD HH:mm:ss" 形式（USER_ENTEREDでSheetsが日付として解釈できる書式）
+      const pad = n => String(n).padStart(2, "0");
+      return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())} `
+        + `${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+    }
+    return value;
   }
 
   /**
@@ -654,8 +721,8 @@ class SSSQL {
    * aggregate() が指定されていなければ、グループキーのみの配列を返す（distinctに近い）。
    */
   _groupedAggregateRows() {
-    const { rows } = this._groupedResultRows();
-    return this._applyOrderBy(rows, r => r, false);
+    const { rows, allowedKeys } = this._groupedResultRows();
+    return this._applyOrderBy(rows, r => r, allowedKeys);
   }
 
   /**
@@ -809,16 +876,24 @@ class SSSQL {
    * getData: 各要素から「並び替えに使うデータオブジェクト」を取り出す関数
    *   - 通常の行（{rowIndex, data}）の場合は r => r.data
    *   - groupBy済みの結果（プレーンなオブジェクト）の場合は r => r（そのまま）
-   * validateColumns: trueなら、指定カラムがシートのヘッダーに存在するかチェックする
-   *   （groupBy結果はaggregate()の出力キーなど、シート上の実カラムでない場合があるためfalseにする）
+   * allowedKeys: 列名の検証に使うキー集合。
+   *   - true を渡すと、シートのヘッダー（headerSet）に対して検証する（通常の行データ用）
+   *   - Set を渡すと、そのSetに対して検証する（groupBy結果用。groupBy()のキー＋aggregate()の出力キー）
+   *   - false/null/undefined を渡すと検証しない
    */
-  _applyOrderBy(items, getData, validateColumns) {
+  _applyOrderBy(items, getData, allowedKeys) {
     if (!this._orderBy || this._orderBy.length === 0) return items;
 
-    if (validateColumns) {
+    if (allowedKeys === true) {
       this._orderBy.forEach(({ column }) => {
         if (!this.headerSet.has(column)) {
           throw new Error(`Unknown column: ${column}`);
+        }
+      });
+    } else if (allowedKeys instanceof Set) {
+      this._orderBy.forEach(({ column }) => {
+        if (!allowedKeys.has(column)) {
+          throw new Error(`Unknown column in orderBy(): ${column} (groupBy()のキー、またはaggregate()の出力キーを指定してください)`);
         }
       });
     }
@@ -858,6 +933,10 @@ class SSSQL {
   }
 
   _fetchAllRows() {
+    if (this._useSheetsApi) {
+      return this._fetchAllRowsViaSheetsApi();
+    }
+
     const lastRow = this.sheet.getLastRow();
     const lastCol = this.sheet.getLastColumn();
 
@@ -895,6 +974,84 @@ class SSSQL {
       rowIndex: this.dataStartRow + i,
       data: this._rowToDict(row)
     }));
+  }
+
+  /**
+   * Sheets API（高度なサービス）を使って、ヘッダー行だけを取得する。this.sheet には触れない。
+   * insert()単体のように、全データではなくヘッダーだけが必要な場合に使う軽量版。
+   */
+  _fetchHeaderViaSheetsApi() {
+    const range = `${this.sheetName}!${this.headerRow}:${this.headerRow}`;
+    let response;
+    try {
+      response = Sheets.Spreadsheets.Values.get(this.spreadsheetId, range, {
+        valueRenderOption: "UNFORMATTED_VALUE",
+        dateTimeRenderOption: "SERIAL_NUMBER"
+      });
+    } catch (e) {
+      throw new Error(
+        "Sheets API の呼び出しに失敗しました。GASプロジェクトの「サービス」から Sheets API (高度なサービス) を有効化しているか確認してください。元のエラー: " + e.message
+      );
+    }
+
+    const header = (response.values && response.values[0]) || [];
+    this._sharedState.header = header;
+    this._sharedState.headerSet = new Set(header);
+  }
+
+  /**
+   * Sheets API（高度なサービス）を使ってデータを取得する。this.sheet（SpreadsheetApp経由）には触れない。
+   * 日付セルはDateオブジェクトではなく、シリアル値（数値）として返る点に注意。
+   */
+  _fetchAllRowsViaSheetsApi() {
+    let response;
+    try {
+      response = Sheets.Spreadsheets.Values.get(this.spreadsheetId, this.sheetName, {
+        valueRenderOption: "UNFORMATTED_VALUE",
+        dateTimeRenderOption: "SERIAL_NUMBER"
+      });
+    } catch (e) {
+      throw new Error(
+        "Sheets API の呼び出しに失敗しました。GASプロジェクトの「サービス」から Sheets API (高度なサービス) を有効化しているか確認してください。元のエラー: " + e.message
+      );
+    }
+
+    const allValues = response.values || [];
+    const headerIndex = this.headerRow - 1;
+
+    if (allValues.length <= headerIndex) {
+      // ヘッダー行にすら到達しない空シート
+      this._sharedState.header = [];
+      this._sharedState.headerSet = new Set();
+      return [];
+    }
+
+    if (!this._sharedState.header) {
+      const header = allValues[headerIndex];
+      this._sharedState.header = header;
+      this._sharedState.headerSet = new Set(header);
+    }
+    const header = this._sharedState.header;
+
+    const dataStartIndex = this.dataStartRow - 1;
+    if (allValues.length <= dataStartIndex) return [];
+
+    const dataRows = allValues.slice(dataStartIndex);
+    return dataRows.map((row, i) => ({
+      rowIndex: this.dataStartRow + i,
+      data: this._rowToDict(this._padRow(row, header.length))
+    }));
+  }
+
+  /**
+   * Sheets APIは各行末尾の空セルを詰めて返す（配列の長さがヘッダーより短くなりうる）ため、
+   * 不足分を空文字で埋めて、SpreadsheetAppのgetValues()と同じ「矩形」の形に揃える。
+   */
+  _padRow(row, length) {
+    if (row.length >= length) return row;
+    const padded = row.slice();
+    while (padded.length < length) padded.push("");
+    return padded;
   }
 
   _rowToDict(row) {
