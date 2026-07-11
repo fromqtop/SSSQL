@@ -8,6 +8,7 @@ class SSSQL {
     // クローン間で共有される状態（どのクローンから書き換えても、全員に伝わる）
     this._sharedState = sharedState || {
       sheet: null,
+      sheetId: null, // シートの数値ID（DeleteDimensionRequestで使う。取得したらキャッシュする）
       header: null,
       headerSet: null,
       rows: null // 行データのキャッシュ
@@ -34,6 +35,19 @@ class SSSQL {
       }
     }
     return this._sharedState.sheet;
+  }
+
+  /**
+   * シートの数値ID（gid）。DeleteDimensionRequest（行削除）で必要になる。
+   * SpreadsheetApp経由（this.sheet.getSheetId()）で取得し、一度取得したらキャッシュする。
+   * Sheets APIモードであっても、この値の取得にはSpreadsheetAppを使う
+   * （Sheets APIのメタデータ取得より軽量で、追加のAPI呼び出しコストに大きな差がないため）。
+   */
+  get sheetId() {
+    if (this._sharedState.sheetId === null) {
+      this._sharedState.sheetId = this.sheet.getSheetId();
+    }
+    return this._sharedState.sheetId;
   }
 
   get header() {
@@ -496,10 +510,15 @@ class SSSQL {
     const filtered = this._filteredRows();
 
     const groups = this._groupConsecutiveRows(filtered.map(r => r.rowIndex));
-    const sortedGroups = [...groups].sort((a, b) => b.start - a.start);
-    sortedGroups.forEach(({ start, count }) => {
-      this.sheet.deleteRows(start, count);
-    });
+
+    if (this._useSheetsApi) {
+      this._deleteGroupsViaSheetsApi(groups);
+    } else {
+      const sortedGroups = [...groups].sort((a, b) => b.start - a.start);
+      sortedGroups.forEach(({ start, count }) => {
+        this.sheet.deleteRows(start, count);
+      });
+    }
 
     this._sharedState.rows = null; // 書き込みしたのでキャッシュは破棄
 
@@ -716,6 +735,39 @@ class SSSQL {
       n = Math.floor((n - 1) / 26);
     }
     return letters;
+  }
+
+  /**
+   * Sheets API（高度なサービス）を使って、連続する行のグループごとに行を削除する（delete用）。
+   * DeleteDimensionRequestは spreadsheets.batchUpdate（Values.batchUpdateとは別のAPI）で行い、
+   * シートの数値ID（this.sheetId）が必要になる。
+   * 行削除は下の行が繰り上がるため、行番号が大きいグループから順にリクエストを並べる。
+   * @param {Array<{start: number, count: number}>} groups - _groupConsecutiveRows() の結果
+   */
+  _deleteGroupsViaSheetsApi(groups) {
+    if (groups.length === 0) return;
+
+    // 行番号が大きい方から処理されるよう、リクエストの順番を降順にする
+    const sortedGroups = [...groups].sort((a, b) => b.start - a.start);
+
+    const requests = sortedGroups.map(({ start, count }) => ({
+      deleteDimension: {
+        range: {
+          sheetId: this.sheetId,
+          dimension: "ROWS",
+          startIndex: start - 1,      // DeleteDimensionRequestは0始まり
+          endIndex: start - 1 + count // 半開区間（endIndexは含まない）
+        }
+      }
+    }));
+
+    try {
+      Sheets.Spreadsheets.batchUpdate({ requests }, this.spreadsheetId);
+    } catch (e) {
+      throw new Error(
+        "Sheets API の呼び出しに失敗しました。GASプロジェクトの「サービス」から Sheets API (高度なサービス) を有効化しているか確認してください。元のエラー: " + e.message
+      );
+    }
   }
 
   /**
