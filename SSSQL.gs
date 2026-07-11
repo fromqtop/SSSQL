@@ -449,13 +449,18 @@ class SSSQL {
     );
 
     const groups = this._groupConsecutiveRows(changes.map(c => c.rowIndex));
-    groups.forEach(({ start, count }) => {
-      const rowsValues = [];
-      for (let i = 0; i < count; i++) {
-        rowsValues.push(afterByRowIndex.get(start + i));
-      }
-      this.sheet.getRange(start, 1, count, this.header.length).setValues(rowsValues);
-    });
+
+    if (this._useSheetsApi) {
+      this._writeGroupsViaSheetsApi(groups, afterByRowIndex);
+    } else {
+      groups.forEach(({ start, count }) => {
+        const rowsValues = [];
+        for (let i = 0; i < count; i++) {
+          rowsValues.push(afterByRowIndex.get(start + i));
+        }
+        this.sheet.getRange(start, 1, count, this.header.length).setValues(rowsValues);
+      });
+    }
 
     this._sharedState.rows = null; // 書き込みしたのでキャッシュは破棄
 
@@ -662,6 +667,55 @@ class SSSQL {
         + `${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
     }
     return value;
+  }
+
+  /**
+   * Sheets API（高度なサービス）を使って、連続する行のグループごとに値を書き込む（update用）。
+   * this.sheet には触れない。1回の batchUpdate リクエストにまとめて送る。
+   * @param {Array<{start: number, count: number}>} groups - _groupConsecutiveRows() の結果
+   * @param {Map<number, Array>} afterByRowIndex - 行番号 -> 書き込む値（ヘッダー順の配列）
+   */
+  _writeGroupsViaSheetsApi(groups, afterByRowIndex) {
+    if (groups.length === 0) return;
+    const numCols = this.header.length;
+    const lastColLetter = this._columnLetter(numCols);
+
+    const data = groups.map(({ start, count }) => {
+      const rowsValues = [];
+      for (let i = 0; i < count; i++) {
+        rowsValues.push(afterByRowIndex.get(start + i).map(v => this._toSheetsApiValue(v)));
+      }
+      const endRow = start + count - 1;
+      return {
+        range: `${this.sheetName}!A${start}:${lastColLetter}${endRow}`,
+        values: rowsValues
+      };
+    });
+
+    try {
+      Sheets.Spreadsheets.Values.batchUpdate(
+        { valueInputOption: "USER_ENTERED", data },
+        this.spreadsheetId
+      );
+    } catch (e) {
+      throw new Error(
+        "Sheets API の呼び出しに失敗しました。GASプロジェクトの「サービス」から Sheets API (高度なサービス) を有効化しているか確認してください。元のエラー: " + e.message
+      );
+    }
+  }
+
+  /**
+   * 1始まりの列番号を、A1記法の列文字（1→A, 26→Z, 27→AA, ...）に変換する。
+   */
+  _columnLetter(colNumber) {
+    let n = colNumber;
+    let letters = "";
+    while (n > 0) {
+      const rem = (n - 1) % 26;
+      letters = String.fromCharCode(65 + rem) + letters;
+      n = Math.floor((n - 1) / 26);
+    }
+    return letters;
   }
 
   /**
