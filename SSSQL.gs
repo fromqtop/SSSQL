@@ -697,7 +697,7 @@ class SSSQL {
    * valueInputOption: "USER_ENTERED" と組み合わせることで、Sheets側に日付として認識させる。
    */
   _toSheetsApiValue(value) {
-    if (value instanceof Date) {
+    if (this._isDate(value)) {
       // "YYYY-MM-DD HH:mm:ss" 形式（USER_ENTEREDでSheetsが日付として解釈できる書式）
       const pad = n => String(n).padStart(2, "0");
       return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())} `
@@ -914,6 +914,19 @@ class SSSQL {
   }
 
   /**
+   * 値がDateかどうかを判定する。`instanceof Date` は使わない。
+   * このライブラリがGASの「ライブラリ」として使われる場合、呼び出し元のスクリプトと
+   * ライブラリ自身は別々の実行コンテキスト（レルム）で動くため、呼び出し元で作られた
+   * Dateオブジェクトは、ライブラリ側の `Date` コンストラクタとは別物とみなされ、
+   * `instanceof Date` が false になってしまう。Object.prototype.toString を使えば、
+   * コンストラクタの参照に依存せず、内部的な型タグだけで判定できるため、
+   * レルムをまたいでも正しく動作する。
+   */
+  _isDate(value) {
+    return Object.prototype.toString.call(value) === "[object Date]";
+  }
+
+  /**
    * this._groupBy に従って、フィルタ・ソート済みの行を「グループキー」ごとにまとめる。
    * @returns {Array<{key: Object, rows: Array}>} グループの配列（最初に出現した順）
    */
@@ -955,7 +968,7 @@ class SSSQL {
   _extractComparable(rows, column) {
     return rows
       .map(r => r.data[column])
-      .filter(v => (typeof v === "number" && !isNaN(v)) || v instanceof Date);
+      .filter(v => (typeof v === "number" && !isNaN(v)) || this._isDate(v));
   }
 
   /**
@@ -975,7 +988,7 @@ class SSSQL {
   _extractComparablePlain(rows, column) {
     return rows
       .map(r => r[column])
-      .filter(v => (typeof v === "number" && !isNaN(v)) || v instanceof Date);
+      .filter(v => (typeof v === "number" && !isNaN(v)) || this._isDate(v));
   }
 
   /**
@@ -1340,7 +1353,7 @@ class SSSQL {
    * それ以外の値はそのまま返す（文字列の自動Date変換など、暗黙の変換は行わない）。
    */
   _normalizeForComparison(value) {
-    if (value instanceof Date) return value.getTime();
+    if (this._isDate(value)) return value.getTime();
     return value;
   }
 
